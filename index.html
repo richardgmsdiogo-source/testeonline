@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Duelo de Cartas — P2P (1 arquivo, sem servidor próprio)</title>
+  <meta name="description" content="Jogue cartas 1x1 entre PC e celular usando WebRTC (PeerJS). Basta escolher a palavra‑chave e conectar.">
+  <!-- Biblioteca PeerJS (usa o servidor público de sinalização do PeerJS) -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b0c14; --fg:#E8ECF1; --muted:#A9B3C1;
+      --panel:#121729; --edge:#2b3045;
+      --accent:#eab308; --danger:#ef4444; --ok:#22c55e;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 system-ui,Segoe UI,Roboto,Arial; display:flex; justify-content:center; align-items:center; padding:16px}
+    .wrap{width:min(920px,100%); display:flex; flex-direction:column; gap:16px}
+    .card{background:var(--panel); border:1px solid var(--edge); border-radius:16px; padding:16px}
+    h1{margin:0 0 .25rem 0; font-size:clamp(20px,3.2vw,28px)}
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    input[type=text]{flex:1; min-width:180px; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:var(--fg)}
+    button{padding:.7rem 1rem; border-radius:10px; border:1px solid var(--edge); background:#19203a; color:var(--fg); cursor:pointer}
+    button[disabled]{opacity:.6; cursor:not-allowed}
+    .badge{display:inline-flex; gap:8px; align-items:center; padding:.35rem .6rem; border-radius:999px; border:1px solid var(--edge); background:#0f1322; color:var(--fg)}
+    .hpbar{height:14px; background:#0f1322; border:1px solid var(--edge); border-radius:999px; overflow:hidden; min-width:160px}
+    .hpbar>div{height:100%; background:linear-gradient(90deg,var(--ok),#16a34a); width:100%}
+    .arena{display:grid; grid-template-columns:1fr; gap:12px}
+    .hands{display:flex; gap:12px; flex-wrap:wrap}
+    .carta{min-width:90px; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center;
+           font-size:26px; border-radius:14px; border:1px solid var(--edge); background:#10182e}
+    .carta>span{pointer-events:none}
+    .carta.playable{outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(234,179,8,.2)}
+    .status{font-weight:600}
+    .footer{opacity:.8; font-size:.9rem}
+    @media (min-width:720px){
+      .arena{grid-template-columns:1fr 1fr}
+    }
+    .role{display:flex; gap:8px; align-items:center}
+    .role input{transform:scale(1.2)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Duelo de Cartas — P2P (sem servidor)</h1>
+      <div class="row">
+        <input id="room" type="text" placeholder="Palavra-chave da sala (ex.: sintetizo-42)" maxlength="24" />
+        <label class="role"><input type="radio" name="r" value="A" checked> Jogar como A</label>
+        <label class="role"><input type="radio" name="r" value="B"> Jogar como B</label>
+        <button id="connect">Conectar</button>
+      </div>
+      <div class="row">
+        <span id="you" class="badge">Você: ?</span>
+        <span id="conn" class="badge">Desconectado</span>
+      </div>
+      <small class="muted">Abra este mesmo arquivo no celular. Ambos digitam a <b>mesma palavra‑chave</b>; um escolhe A e o outro B. Requer internet (usa o servidor público do PeerJS para conexão P2P).</small>
+    </div>
+
+    <div class="card arena">
+      <div>
+        <div class="row"><strong>Oponente</strong> <span id="oppSym" class="badge">?</span></div>
+        <div class="hpbar"><div id="oppHP"></div></div>
+      </div>
+      <div>
+        <div class="row"><strong>Você</strong> <span id="meSym" class="badge">?</span></div>
+        <div class="hpbar"><div id="meHP"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row status" id="status">Status: —</div>
+      <div class="hands" id="hand"></div>
+      <div class="row">
+        <button id="reset" disabled>Reiniciar partida</button>
+      </div>
+      <div class="footer">
+        Regras: cada turno você joga uma carta (1–5) e causa dano no oponente igual ao valor. Mãos têm 3 cartas e são repostas automaticamente. Vence quem zerar o HP do oponente.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Config ---------------------------------------
+    const HP_INICIAL = 15;
+    const TAM_MAO = 3;
+    const VALORES = [1,2,3,4,5];
+
+    // Estado e UI ----------------------------------
+    let me = "?";      // "A" ou "B"
+    let opp = "?";
+    let state = null;  // authoritativo mantido por A
+    let conn = null;   // DataConnection PeerJS
+    let peer = null;   // Peer local
+    let role = "A";    // default
+
+    const $room = document.getElementById('room');
+    const $connect = document.getElementById('connect');
+    const $you = document.getElementById('you');
+    const $conn = document.getElementById('conn');
+    const $oppSym = document.getElementById('oppSym');
+    const $meSym = document.getElementById('meSym');
+    const $oppHP = document.getElementById('oppHP');
+    const $meHP = document.getElementById('meHP');
+    const $status = document.getElementById('status');
+    const $hand = document.getElementById('hand');
+    const $reset = document.getElementById('reset');
+
+    document.querySelectorAll('input[name="r"]').forEach(r=>{
+      r.addEventListener('change', ()=>{ role = r.value; });
+    });
+
+    function newHand(){
+      const h = [];
+      for(let i=0;i<TAM_MAO;i++){
+        h.push(VALORES[Math.floor(Math.random()*VALORES.length)]);
+      }
+      return h;
+    }
+
+    function resetState(){
+      state = {
+        hp: {A:HP_INICIAL, B:HP_INICIAL},
+        turn: "A",
+        game_over: false,
+        status: "Partida iniciada. Vez de A.",
+        hands: {A:newHand(), B:newHand()}
+      };
+    }
+
+    function render(){
+      const myHP = (state?.hp?.[me] ?? HP_INICIAL);
+      const opHP = (state?.hp?.[opp] ?? HP_INICIAL);
+      $meHP.style.width = Math.max(0, Math.min(100, Math.round(myHP / HP_INICIAL * 100))) + "%";
+      $oppHP.style.width = Math.max(0, Math.min(100, Math.round(opHP / HP_INICIAL * 100))) + "%";
+      $meSym.textContent = me;
+      $oppSym.textContent = opp;
+      $status.textContent = "Status: " + (state?.status || "—");
+
+      $hand.innerHTML = "";
+      const myHand = state?.hands?.[me] || [];
+      const playable = !!conn && state && !state.game_over && state.turn === me;
+      myHand.forEach((v,i)=>{
+        const b = document.createElement('button');
+        b.className = 'carta';
+        const span = document.createElement('span');
+        span.textContent = v;
+        b.appendChild(span);
+        if(playable) b.classList.add('playable');
+        b.disabled = !playable;
+        b.onclick = ()=>{
+          if(!conn || conn.open !== true) return;
+          if(me === "A"){
+            // A aplica localmente e envia novo estado
+            applyMove("A", i);
+            sendState();
+          }else{
+            // B solicita jogada a A
+            conn.send({type:"play", index:i});
+          }
+        };
+        $hand.appendChild(b);
+      });
+
+      $reset.disabled = !conn || !conn.open;
+    }
+
+    function applyMove(sym, idx){
+      if(state.game_over || state.turn !== sym) return;
+      const hand = state.hands[sym];
+      if(idx<0 || idx>=hand.length) return;
+      const val = hand.splice(idx,1)[0];
+      // compra
+      hand.push(VALORES[Math.floor(Math.random()*VALORES.length)]);
+      // dano
+      const target = (sym === "A") ? "B" : "A";
+      state.hp[target] = Math.max(0, state.hp[target] - val);
+      if(state.hp[target] === 0){
+        state.game_over = true;
+        state.status = `Jogador ${sym} venceu!`;
+      }else{
+        state.turn = target;
+        state.status = `Jogador ${state.turn} é o próximo.`;
+      }
+    }
+
+    function sendState(){
+      if(conn && conn.open){
+        // Não enviar a mão do oponente completa: só a sua
+        const slim = {
+          hp: state.hp,
+          turn: state.turn,
+          game_over: state.game_over,
+          status: state.status,
+          hands: {[me]: state.hands[me]} // o receptor é sempre o oponente de A
+        };
+        conn.send({type:"state", state: slim});
+      }
+      render();
+    }
+
+    function handleMessage(msg){
+      if(msg.type === "state"){
+        // B recebe estado do A (apenas sua mão)
+        if(me === "B"){
+          state = state || {hp:{A:HP_INICIAL,B:HP_INICIAL},turn:"A",game_over:false,status:""};
+          state.hp = msg.state.hp;
+          state.turn = msg.state.turn;
+          state.game_over = msg.state.game_over;
+          state.status = msg.state.status;
+          // mantém minha mão visível
+          state.hands = state.hands || {};
+          state.hands["B"] = msg.state.hands["B"] || state.hands["B"] || newHand();
+        }
+        render();
+      }
+      if(msg.type === "play"){
+        // A recebeu solicitação de jogada de B
+        if(me === "A"){
+          applyMove("B", msg.index|0);
+          sendState();
+        }
+      }
+      if(msg.type === "reset"){
+        if(me === "A"){
+          resetState();
+          sendState();
+        }
+      }
+    }
+
+    function connect(){
+      const code = ($room.value||"").trim().toLowerCase();
+      if(!code){ alert("Informe a palavra‑chave da sala."); return; }
+      me = role;
+      opp = (me === "A") ? "B" : "A";
+      $you.textContent = `Você: ${me}  (sala: ${code})`;
+
+      const myId = `${code}-${me}`;
+      const peerConfig = {
+        debug: 2,
+        config: {iceServers:[
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]}
+      };
+      peer = new Peer(myId, peerConfig);
+
+      peer.on('open', id=>{
+        $conn.textContent = 'Conectando…';
+        const otherId = `${code}-${opp}`;
+        // Estratégia simples: quem é B tenta conectar ativamente.
+        // Quem é A também tenta dial periodicamente, assim funciona em qualquer ordem.
+        function tryDial(){
+          if(conn && conn.open) return;
+          const c = peer.connect(otherId, {reliable:true});
+          setupConn(c);
+        }
+        tryDial();
+        const dialInt = setInterval(()=>{
+          if(conn && conn.open){ clearInterval(dialInt); return; }
+          tryDial();
+        }, 1000);
+      });
+
+      peer.on('connection', c=>{
+        setupConn(c);
+      });
+
+      peer.on('error', err=>{
+        console.error(err);
+        $conn.textContent = 'Erro: ' + err.type;
+      });
+
+      function setupConn(c){
+        c.on('open', ()=>{
+          conn = c;
+          $conn.textContent = 'Conectado';
+          // A é o "mestre" do estado
+          if(me === "A"){
+            if(!state) resetState();
+            sendState();
+          }
+          render();
+        });
+        c.on('data', data=> handleMessage(data));
+        c.on('close', ()=>{
+          $conn.textContent = 'Desconectado';
+          conn = null;
+          render();
+        });
+      }
+    }
+
+    document.getElementById('connect').onclick = connect;
+    document.getElementById('reset').onclick = ()=>{
+      if(me === "A"){
+        resetState();
+        sendState();
+      }else if(conn && conn.open){
+        conn.send({type:"reset"});
+      }
+    };
+
+    // Render inicial
+    state = {hp:{A:HP_INICIAL,B:HP_INICIAL},turn:"A",game_over:false,status:"Aguardando conexão…",hands:{A:[],B:[]}};
+    render();
+  </script>
+</body>
+</html>
