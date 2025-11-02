@@ -3,64 +3,74 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Duelo de Cartas — P2P (simultâneo, multi-rodadas FIX)</title>
-  <meta name="description" content="Duelo 1x1 com WebRTC/PeerJS; movimentos: Ataque, Bloqueio, Esquiva, Ataque Forte. Agora suporta próximas rodadas corretamente.">
+  <title>Duelo de Cartas — P2P (nomes + energia + simultâneo)</title>
+  <meta name="description" content="Duelo 1x1 via WebRTC/PeerJS. Nomes dos jogadores, energia acumulativa, movimentos com custo e escolhas simultâneas.">
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root{
       --bg:#0b0c14; --fg:#E8ECF1; --muted:#A9B3C1;
       --panel:#121729; --edge:#2b3045;
-      --accent:#eab308; --danger:#ef4444; --ok:#22c55e;
+      --accent:#eab308; --danger:#ef4444; --ok:#22c55e; --energy:#60a5fa;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 system-ui,Segoe UI,Roboto,Arial; display:flex; justify-content:center; align-items:center; padding:16px}
-    .wrap{width:min(920px,100%); display:flex; flex-direction:column; gap:16px}
+    .wrap{width:min(980px,100%); display:flex; flex-direction:column; gap:16px}
     .card{background:var(--panel); border:1px solid var(--edge); border-radius:16px; padding:16px}
     h1{margin:0 0 .25rem 0; font-size:clamp(20px,3.2vw,28px)}
     .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    input[type=text]{flex:1; min-width:180px; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
+    input[type=text]{flex:1; min-width:160px; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
     button{padding:.7rem 1rem; border-radius:10px; border:1px solid var(--edge); background:#19203a; color:#e8ecf1; cursor:pointer}
     button[disabled]{opacity:.6; cursor:not-allowed}
     .badge{display:inline-flex; gap:8px; align-items:center; padding:.35rem .6rem; border-radius:999px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
-    .hpbar{height:14px; background:#0f1322; border:1px solid var(--edge); border-radius:999px; overflow:hidden; min-width:160px}
+    .hpbar, .enbar{height:14px; background:#0f1322; border:1px solid var(--edge); border-radius:999px; overflow:hidden; min-width:160px}
     .hpbar>div{height:100%; background:linear-gradient(90deg,var(--ok),#16a34a); width:100%}
+    .enbar>div{height:100%; background:linear-gradient(90deg,var(--energy),#2563eb); width:0%}
     .arena{display:grid; grid-template-columns:1fr; gap:12px}
-    @media (min-width:720px){ .arena{grid-template-columns:1fr 1fr} }
-    .actions{display:grid; grid-template-columns:repeat(2, minmax(120px,1fr)); gap:12px}
-    .move{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center; min-height:72px;
-          border:1px solid var(--edge); border-radius:12px; background:#10182e}
+    @media (min-width:760px){ .arena{grid-template-columns:1fr 1fr} }
+    .actions{display:grid; grid-template-columns:repeat(2, minmax(160px,1fr)); gap:12px}
+    .move{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center; min-height:82px;
+          border:1px solid var(--edge); border-radius:12px; background:#10182e; text-align:center}
+    .move small{opacity:.8}
     .move.playable{outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(234,179,8,.2)}
     .muted{color:var(--muted)}
     .status{font-weight:600}
-    .log{background:#0f1322; border:1px solid var(--edge); border-radius:12px; padding:12px; max-height:180px; overflow:auto; white-space:pre-wrap}
+    .log{background:#0f1322; border:1px solid var(--edge); border-radius:12px; padding:12px; max-height:220px; overflow:auto; white-space:pre-wrap}
+    .name{font-weight:600}
+    .spacer{flex:1}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Duelo de Cartas — P2P (simultâneo)</h1>
+      <h1>Duelo de Cartas — P2P (nomes + energia)</h1>
       <div class="row">
-        <input id="room" type="text" placeholder="Palavra-chave (ex.: sintetizo-42)" maxlength="24" />
-        <label><input type="radio" name="r" value="A" checked> A</label>
-        <label><input type="radio" name="r" value="B"> B</label>
+        <input id="room" type="text" placeholder="Palavra-chave da sala (ex.: sintetizo-42)" maxlength="24" />
+        <input id="playerName" type="text" placeholder="Seu nome (ex.: Richard)" maxlength="20" />
+        <label><input type="radio" name="slot" value="1" checked> 1º</label>
+        <label><input type="radio" name="slot" value="2"> 2º</label>
         <button id="connect">Conectar</button>
+        <button id="leave" disabled>Sair da sala</button>
       </div>
       <div class="row">
         <span id="you" class="badge">Você: ?</span>
         <span id="conn" class="badge">Desconectado</span>
+        <span class="spacer"></span>
+        <span id="round" class="badge">Rodada —</span>
       </div>
-      <small class="muted">Abra este mesmo arquivo no celular. HTTPS recomendado (GitHub Pages).</small>
+      <small class="muted">HTTPS (GitHub Pages) recomendado. Se travar após um jogo, use “Sair da sala” e reconecte.</small>
     </div>
 
     <div class="card arena">
       <div>
-        <div class="row"><strong>Oponente</strong> <span id="oppSym" class="badge">?</span></div>
+        <div class="row"><strong class="name" id="oppNameHead">Oponente</strong></div>
         <div class="hpbar"><div id="oppHP"></div></div>
+        <div class="enbar" style="margin-top:6px;"><div id="oppEN"></div></div>
       </div>
       <div>
-        <div class="row"><strong>Você</strong> <span id="meSym" class="badge">?</span></div>
+        <div class="row"><strong class="name" id="meNameHead">Você</strong></div>
         <div class="hpbar"><div id="meHP"></div></div>
+        <div class="enbar" style="margin-top:6px;"><div id="meEN"></div></div>
       </div>
     </div>
 
@@ -72,107 +82,131 @@
         <button id="reset" disabled>Reiniciar partida</button>
       </div>
       <div class="log" id="log"></div>
-      <small class="muted">Movimentos: <b>Ataque</b> (3), <b>Ataque Forte</b> (5), <b>Bloqueio</b> (-3 de dano recebido), <b>Esquiva</b> (anula Ataque; não evita Forte).</small>
+      <small class="muted">Movimentos: <b>Ataque</b> (3 dano / 1 EN), <b>Ataque Forte</b> (5 dano / 4 EN), <b>Bloqueio</b> (-3 dano recebido / 1 EN), <b>Esquiva</b> (anula Ataque / 2 EN). Energia +2 por rodada (máx. 10).</small>
     </div>
   </div>
 
   <script>
     // Config
     const HP_INICIAL = 15;
+    const EN_INICIAL = 2;
+    const EN_GAIN = 2;
+    const EN_MAX = 10;
     const MOVES = ["ATAQUE", "BLOQUEIO", "ESQUIVA", "FORTE"];
     const DMG = { ATAQUE:3, FORTE:5 };
+    const COST = { ATAQUE:1, BLOQUEIO:1, ESQUIVA:2, FORTE:4 };
     const BLOCK_VAL = 3;
 
     // Estado
-    let me = "?";      // "A" ou "B"
-    let opp = "?";
-    let state = null;  // mantido por A
+    let me = "p1";      // "p1" ou "p2"
+    let opp = "p2";
+    let myName = "Jogador";
+    let state = null;  // mantido por p1
     let conn = null;   // DataConnection
     let peer = null;   // Peer local
-    let role = "A";    // padrão
+    let slot = "1";    // "1" ou "2"
+    let roomCode = "";
 
+    // UI refs
     const $room = document.getElementById('room');
+    const $playerName = document.getElementById('playerName');
     const $connect = document.getElementById('connect');
+    const $leave = document.getElementById('leave');
     const $you = document.getElementById('you');
     const $conn = document.getElementById('conn');
-    const $oppSym = document.getElementById('oppSym');
-    const $meSym = document.getElementById('meSym');
+    const $oppNameHead = document.getElementById('oppNameHead');
+    const $meNameHead = document.getElementById('meNameHead');
     const $oppHP = document.getElementById('oppHP');
     const $meHP = document.getElementById('meHP');
+    const $oppEN = document.getElementById('oppEN');
+    const $meEN = document.getElementById('meEN');
     const $status = document.getElementById('status');
     const $actions = document.getElementById('actions');
     const $next = document.getElementById('next');
     const $reset = document.getElementById('reset');
     const $log = document.getElementById('log');
+    const $round = document.getElementById('round');
 
-    document.querySelectorAll('input[name="r"]').forEach(r=>{
-      r.addEventListener('change', ()=>{ role = r.value; });
+    document.querySelectorAll('input[name="slot"]').forEach(r=>{
+      r.addEventListener('change', ()=>{ slot = r.value; });
     });
 
-    function resetState(){
+    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+    function labelMove(mv){ return mv==="ATAQUE"?"Ataque":mv==="FORTE"?"Ataque Forte":mv==="BLOQUEIO"?"Bloqueio":mv==="ESQUIVA"?"Esquiva":"Espera"; }
+
+    function logLine(txt){
+      $log.textContent = (txt + "\n" + $log.textContent).slice(0, 6000);
+    }
+
+    function resetState(names){
       state = {
-        hp:{A:HP_INICIAL, B:HP_INICIAL},
-        pending:{A:null, B:null},  // escolhas da rodada
-        reveal:false,               // true quando ambos escolherem
-        last:{A:null, B:null},      // últimas escolhas reveladas
-        delta:{A:0, B:0},           // dano recebido na última rodada
+        names: names || {p1:"Jogador 1", p2:"Jogador 2"},
+        hp:{p1:HP_INICIAL, p2:HP_INICIAL},
+        en:{p1:EN_INICIAL, p2:EN_INICIAL},
+        pending:{p1:null, p2:null},
+        reveal:false,
+        last:{p1:null, p2:null},
+        delta:{p1:0, p2:0},
         round:1,
-        status:"Rodada 1 — escolham seus movimentos."
+        status:"Rodada 1 — escolham seus movimentos.",
+        pendingChosen:{p1:false, p2:false}
       };
+      $log.textContent = "";
       render();
     }
 
     function render(){
-      const myHP = (state?.hp?.[me] ?? HP_INICIAL);
-      const opHP = (state?.hp?.[opp] ?? HP_INICIAL);
-      $meHP.style.width = Math.max(0, Math.min(100, Math.round(myHP/HP_INICIAL*100))) + "%";
-      $oppHP.style.width = Math.max(0, Math.min(100, Math.round(opHP/HP_INICIAL*100))) + "%";
-      $meSym.textContent = me;
-      $oppSym.textContent = opp;
-      $status.textContent = "Status: " + (state?.status || "—");
+      const myHP = state?.hp?.[me] ?? HP_INICIAL;
+      const opHP = state?.hp?.[opp] ?? HP_INICIAL;
+      const myEN = state?.en?.[me] ?? EN_INICIAL;
+      const opEN = state?.en?.[opp] ?? EN_INICIAL;
 
-      // Ações
+      $meHP.style.width = clamp(Math.round(myHP/HP_INICIAL*100),0,100) + "%";
+      $oppHP.style.width = clamp(Math.round(opHP/HP_INICIAL*100),0,100) + "%";
+      $meEN.style.width = clamp(Math.round(myEN/EN_MAX*100),0,100) + "%";
+      $oppEN.style.width = clamp(Math.round(opEN/EN_MAX*100),0,100) + "%";
+
+      $meNameHead.textContent = state?.names?.[me] || "Você";
+      $oppNameHead.textContent = state?.names?.[opp] || "Oponente";
+      $round.textContent = `Rodada ${state?.round ?? "—"}`;
+      $status.textContent = "Status: " + (state?.status || "—");
+      $you.textContent = `Você: ${$meNameHead.textContent} (${slot}º)`;
+
       $actions.innerHTML = "";
-      // Para habilitar escolha, usamos um indicador recebido de A: pendingMeChosen
-      const canPick = !!conn && !state.reveal && state.hp[me] > 0 && state.hp[opp] > 0 && !state.pendingMeChosen;
-      MOVES.forEach(mv=>{
+      const myChosen = state?.pendingChosen?.[me] === true;
+      const canPick = !!conn && !state.reveal && state.hp[me] > 0 && state.hp[opp] > 0 && !myChosen;
+      ["ATAQUE","FORTE","BLOQUEIO","ESQUIVA"].forEach(mv=>{
         const b = document.createElement('button');
         b.className = 'move';
-        b.textContent = labelMove(mv);
-        if(canPick) b.classList.add('playable');
-        b.disabled = !canPick;
+        const cost = COST[mv];
+        b.innerHTML = `<div>${labelMove(mv)}</div><small>Custo ${cost} EN</small>`;
+        if(canPick && state.en[me] >= cost) b.classList.add('playable');
+        b.disabled = !canPick || state.en[me] < cost;
         b.onclick = ()=> choose(mv);
         $actions.appendChild(b);
       });
 
-      $next.disabled = !(conn && state.reveal && state.hp.A>0 && state.hp.B>0);
+      $next.disabled = !(conn && state.reveal && state.hp.p1>0 && state.hp.p2>0);
       $reset.disabled = !conn;
+      $leave.disabled = !peer;
     }
 
-    function labelMove(mv){
-      switch(mv){
-        case "ATAQUE": return "Ataque (3)";
-        case "FORTE": return "Ataque Forte (5)";
-        case "BLOQUEIO": return "Bloqueio (-3 dano)";
-        case "ESQUIVA": return "Esquiva (anula Ataque)";
-        default: return mv;
-      }
+    function validateChoice(move, energy){
+      if(!move) return "ESPERA";
+      const cost = COST[move] || 0;
+      if(energy < cost) return "ESPERA";
+      return move;
     }
 
-    function logLine(txt){
-      $log.textContent = (txt + "\n" + $log.textContent).slice(0, 4000);
-    }
-
-    // Resolver rodada (no A)
     function resolveRound(){
-      const a = state.pending.A, b = state.pending.B;
-      const dmgTo = {A:0, B:0};
+      const a = validateChoice(state.pending.p1, state.en.p1);
+      const b = validateChoice(state.pending.p2, state.en.p2);
 
-      const rawA = DMG[a] || 0;
-      const rawB = DMG[b] || 0;
+      const rawA = (a==="ATAQUE")?3:(a==="FORTE")?5:0;
+      const rawB = (b==="ATAQUE")?3:(b==="FORTE")?5:0;
 
-      const blockA = (a === "BLOQUEIO") ? BLOCK_VAL : 0;
-      const blockB = (b === "BLOQUEIO") ? BLOCK_VAL : 0;
+      const blockA = (a === "BLOQUEIO") ? 3 : 0;
+      const blockB = (b === "BLOQUEIO") ? 3 : 0;
 
       const dodgeA = (a === "ESQUIVA");
       const dodgeB = (b === "ESQUIVA");
@@ -185,60 +219,67 @@
       if(dodgeB && a === "ATAQUE") incomingB = 0;
       incomingB = Math.max(0, incomingB - blockB);
 
-      dmgTo.A = incomingA;
-      dmgTo.B = incomingB;
+      // Gasta energia dos válidos
+      state.en.p1 = clamp(state.en.p1 - (COST[a]||0), 0, EN_MAX);
+      state.en.p2 = clamp(state.en.p2 - (COST[b]||0), 0, EN_MAX);
 
-      state.hp.A = Math.max(0, state.hp.A - dmgTo.A);
-      state.hp.B = Math.max(0, state.hp.B - dmgTo.B);
-      state.delta = dmgTo;
-      state.last = {A:a, B:b};
+      // Aplica dano
+      state.hp.p1 = clamp(state.hp.p1 - incomingA, 0, HP_INICIAL);
+      state.hp.p2 = clamp(state.hp.p2 - incomingB, 0, HP_INICIAL);
+      state.delta = {p1:incomingA, p2:incomingB};
+      state.last = {p1:a, p2:b};
       state.reveal = true;
 
-      const line = `Rodada ${state.round}: A ${labelMove(a)} × B ${labelMove(b)}  →  A sofreu ${dmgTo.A}, B sofreu ${dmgTo.B}.`;
+      const n1 = state.names.p1, n2 = state.names.p2;
+      const line = `Rodada ${state.round}: ${n1} ${labelMove(a)} × ${n2} ${labelMove(b)}  →  ${n1} sofreu ${incomingA}, ${n2} sofreu ${incomingB}. (EN: ${state.en.p1}/${state.en.p2})`;
       logLine(line);
-      if(state.hp.A === 0 && state.hp.B === 0){
-        state.status = `Rodada ${state.round} — Empate técnico! Ambos a 0.`;
-      }else if(state.hp.A === 0){
-        state.status = `Rodada ${state.round} — B venceu o duelo!`;
-      }else if(state.hp.B === 0){
-        state.status = `Rodada ${state.round} — A venceu o duelo!`;
+
+      if(state.hp.p1 === 0 && state.hp.p2 === 0){
+        state.status = `Rodada ${state.round} — Empate técnico!`;
+      }else if(state.hp.p1 === 0){
+        state.status = `Rodada ${state.round} — ${n2} venceu o duelo!`;
+      }else if(state.hp.p2 === 0){
+        state.status = `Rodada ${state.round} — ${n1} venceu o duelo!`;
       }else{
         state.status = `Rodada ${state.round} concluída. Clique "Próxima rodada".`;
       }
     }
 
     function choose(mv){
-      if(me === "A"){
-        state.pending.A = mv;
-        if(state.pending.B){
+      const key = me;
+      const other = opp;
+      if(slot === "1"){
+        state.pending[key] = mv;
+        state.pendingChosen[key] = true;
+        if(state.pending[other]){
           resolveRound();
+          if(state.hp.p1>0) state.en.p1 = clamp(state.en.p1 + EN_GAIN, 0, EN_MAX);
+          if(state.hp.p2>0) state.en.p2 = clamp(state.en.p2 + EN_GAIN, 0, EN_MAX);
           sendState("reveal");
         }else{
-          state.status = `Rodada ${state.round} — sua escolha feita; aguardando oponente…`;
-          sendState("progress");
+          state.status = `Rodada ${state.round} — ${state.names[key]} escolheu; aguardando ${state.names[other]}…`;
+          sendState("state");
         }
         render();
       }else{
-        // B envia escolha para A e localmente marca que já escolheu
         if(conn && conn.open){
           conn.send({type:"choice", move: mv});
         }
-        state.pendingMeChosen = true; // bloqueia novos cliques até resolver/next
-        state.status = `Rodada ${state.round} — escolha feita; aguardando oponente…`;
+        state.pendingChosen[key] = true;
+        state.status = `Rodada ${state.round} — escolha feita; aguardando ${state.names[opp]}…`;
         render();
       }
     }
 
     function nextRound(){
-      // Só A inicia próxima rodada e apenas se rodada foi revelada e ninguém venceu
-      if(me === "A" && state.reveal && state.hp.A>0 && state.hp.B>0){
+      if(slot === "1" && state.reveal && state.hp.p1>0 && state.hp.p2>0){
         state.round += 1;
-        state.pending = {A:null, B:null};
+        state.pending = {p1:null, p2:null};
+        state.pendingChosen = {p1:false, p2:false};
         state.reveal = false;
-        state.last = {A:null, B:null};
-        state.delta = {A:0, B:0};
-        state.status = `Rodada ${state.round} — escolham seus movimentos.`;
-        // Ao enviar novo estado, indicar que B ainda NÃO escolheu
+        state.last = {p1:null, p2:null};
+        state.delta = {p1:0, p2:0};
+        state.status = `Rodada ${state.round} — ${state.names.p1} e ${state.names.p2}, escolham seus movimentos.`;
         sendState("state");
         render();
       }else if(conn && conn.open){
@@ -247,8 +288,8 @@
     }
 
     function resetMatch(){
-      if(me === "A"){
-        resetState();
+      if(slot === "1"){
+        resetState(state.names);
         sendState("state");
       }else if(conn && conn.open){
         conn.send({type:"reset"});
@@ -257,30 +298,40 @@
 
     function sendState(kind){
       if(!conn || !conn.open) return;
-      // Este método é sempre chamado por A
       const payload = {
+        names: state.names,
         hp: state.hp,
+        en: state.en,
         round: state.round,
         reveal: state.reveal,
-        last: state.reveal ? state.last : {A:null, B:null},
-        delta: state.reveal ? state.delta : {A:0,B:0},
-        // Diz ao B se ELE já escolheu (para desabilitar botões do lado dele).
-        pendingMeChosen: (state.pending.B !== null),
+        last: state.reveal ? state.last : {p1:null, p2:null},
+        delta: state.reveal ? state.delta : {p1:0,p2:0},
+        pendingMeChosen: state.pendingChosen.p2,
         status: state.status
       };
       conn.send({type: kind === "reveal" ? "reveal" : "state", state: payload});
     }
 
     function handleMessage(msg){
+      if(msg.type === "setName"){
+        if(slot === "1"){
+          state.names.p2 = (""+msg.name).slice(0,20) || "Jogador 2";
+          sendState("state");
+          render();
+        }
+        return;
+      }
       if(msg.type === "choice"){
-        // A recebeu a escolha de B
-        if(me === "A"){
-          state.pending.B = msg.move;
-          if(state.pending.A){
+        if(slot === "1"){
+          state.pending.p2 = msg.move;
+          state.pendingChosen.p2 = true;
+          if(state.pending.p1){
             resolveRound();
+            if(state.hp.p1>0) state.en.p1 = clamp(state.en.p1 + EN_GAIN, 0, EN_MAX);
+            if(state.hp.p2>0) state.en.p2 = clamp(state.en.p2 + EN_GAIN, 0, EN_MAX);
             sendState("reveal");
           }else{
-            state.status = `Rodada ${state.round} — oponente escolheu; aguarde sua decisão.`;
+            state.status = `Rodada ${state.round} — ${state.names.p2} escolheu; aguarde sua decisão.`;
             sendState("state");
           }
           render();
@@ -288,57 +339,62 @@
         return;
       }
       if(msg.type === "state"){
-        // B recebe estado (sem revelar a escolha de A)
         state = state || {};
+        state.names = msg.state.names;
         state.hp = msg.state.hp;
+        state.en = msg.state.en;
         state.round = msg.state.round;
         state.reveal = msg.state.reveal;
         state.last = msg.state.last;
         state.delta = msg.state.delta;
         state.status = msg.state.status;
-        // Reset local de bloqueio de escolha; A informa se B já escolheu
-        state.pendingMeChosen = !!msg.state.pendingMeChosen;
+        state.pendingChosen = state.pendingChosen || {p1:false,p2:false};
+        state.pendingChosen.p2 = !!msg.state.pendingMeChosen;
         render();
         return;
       }
       if(msg.type === "reveal"){
-        // B recebe resultado da rodada
         state = state || {};
+        state.names = msg.state.names;
         state.hp = msg.state.hp;
+        state.en = msg.state.en;
         state.round = msg.state.round;
         state.reveal = msg.state.reveal;
         state.last = msg.state.last;
         state.delta = msg.state.delta;
         state.status = msg.state.status;
-        // Após revelar, B não pode escolher até A chamar próxima rodada
-        state.pendingMeChosen = true;
+        state.pendingChosen = {p1:true, p2:true};
         render();
         return;
       }
       if(msg.type === "next"){
-        if(me === "A"){
-          nextRound();
-        }
+        if(slot === "1"){ nextRound(); }
         return;
       }
       if(msg.type === "reset"){
-        if(me === "A"){
-          resetState();
-          sendState("state");
-          render();
-        }
+        if(slot === "1"){ resetMatch(); }
         return;
       }
     }
 
     function connect(){
-      const code = ($room.value||"").trim().toLowerCase();
-      if(!code){ alert("Informe a palavra-chave da sala."); return; }
-      me = role;
-      opp = (me === "A") ? "B" : "A";
-      $you.textContent = `Você: ${me}  (sala: ${code})`;
+      roomCode = ($room.value||"").trim().toLowerCase();
+      myName = ($playerName.value||"").trim() || "Jogador";
+      if(!roomCode){ alert("Informe a palavra-chave da sala."); return; }
+      me = (slot === "1") ? "p1" : "p2";
+      opp = (slot === "1") ? "p2" : "p1";
 
-      const myId = `${code}-${me}`;
+      if(slot === "1"){
+        resetState({p1: myName, p2: "Aguardando…" });
+      }else{
+        state = {names:{p1:"Aguardando…", p2:myName}, hp:{p1:HP_INICIAL,p2:HP_INICIAL}, en:{p1:EN_INICIAL,p2:EN_INICIAL},
+                 round:1,reveal:false,last:{p1:null,p2:null},delta:{p1:0,p2:0},status:"Conectando…", pendingChosen:{p1:false,p2:false}};
+      }
+      render();
+
+      const myId = `${roomCode}-${slot}`;
+      const otherId = `${roomCode}-${slot==="1"?"2":"1"}`;
+
       const peerConfig = {
         debug: 2,
         config: {iceServers:[
@@ -350,48 +406,70 @@
 
       peer.on('open', id=>{
         $conn.textContent = 'Conectando…';
-        const otherId = `${code}-${opp}`;
-        function tryDial(){
-          if(conn && conn.open) return;
-          const c = peer.connect(otherId, {reliable:true});
-          setupConn(c);
-        }
-        tryDial();
-        const dialInt = setInterval(()=>{
-          if(conn && conn.open){ clearInterval(dialInt); return; }
-          tryDial();
-        }, 1000);
+        tryDialRepeated(otherId);
       });
 
       peer.on('connection', c=> setupConn(c));
-      peer.on('error', err=>{ console.error(err); $conn.textContent = 'Erro: ' + err.type; });
-
-      function setupConn(c){
-        c.on('open', ()=>{
-          conn = c;
-          $conn.textContent = 'Conectado';
-          if(me === "A"){
-            resetState();
-            sendState("state");
-          }else{
-            // Estado inicial do B: ainda não escolheu nesta rodada
-            state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Conectado. Aguardando estado…"};
-            state.pendingMeChosen = false;
-          }
-          render();
-        });
-        c.on('data', data=> handleMessage(data));
-        c.on('close', ()=>{ $conn.textContent = 'Desconectado'; conn = null; render(); });
-      }
+      peer.on('error', err=>{
+        console.error(err);
+        if(err.type === 'unavailable-id'){
+          $conn.textContent = 'ID em uso. Use “Sair da sala” e reconecte, ou troque 1º/2º.';
+        }else{
+          $conn.textContent = 'Erro: ' + err.type;
+        }
+      });
     }
 
+    function tryDialRepeated(otherId){
+      function tryDial(){
+        if(conn && conn.open) return;
+        const c = peer.connect(otherId, {reliable:true});
+        setupConn(c);
+      }
+      tryDial();
+      const dialInt = setInterval(()=>{
+        if(conn && conn.open){ clearInterval(dialInt); return; }
+        tryDial();
+      }, 1000);
+    }
+
+    function setupConn(c){
+      c.on('open', ()=>{
+        conn = c;
+        $conn.textContent = 'Conectado';
+        $leave.disabled = false;
+        if(slot === "1"){
+          sendState("state");
+        }else{
+          conn.send({type:"setName", name: myName});
+        }
+        render();
+      });
+      c.on('data', data=> handleMessage(data));
+      c.on('close', ()=>{
+        $conn.textContent = 'Desconectado';
+        conn = null;
+        render();
+      });
+    }
+
+    function leave(){
+      try{ conn && conn.close(); }catch{}
+      try{ peer && peer.destroy(); }catch{}
+      conn = null; peer = null;
+      $conn.textContent = 'Desconectado';
+      $leave.disabled = true;
+    }
+    window.addEventListener('beforeunload', leave);
+
     document.getElementById('connect').onclick = connect;
-    $next.onclick = ()=> nextRound();
-    $reset.onclick = ()=> resetMatch();
+    document.getElementById('leave').onclick = leave;
+    document.getElementById('next').onclick = ()=> nextRound();
+    document.getElementById('reset').onclick = ()=> resetMatch();
 
     // UI inicial
-    state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Aguardando conexão…"};
-    state.pendingMeChosen = false;
+    state = {names:{p1:"—",p2:"—"}, hp:{p1:HP_INICIAL,p2:HP_INICIAL}, en:{p1:EN_INICIAL,p2:EN_INICIAL},
+             round:1,reveal:false,last:{p1:null,p2:null},delta:{p1:0,p2:0},status:"Aguardando conexão…", pendingChosen:{p1:false,p2:false}};
     render();
   </script>
 </body>
