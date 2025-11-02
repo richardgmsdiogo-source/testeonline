@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Duelo de Cartas — P2P (escolha simultânea)</title>
-  <meta name="description" content="Duelo 1x1 com WebRTC/PeerJS; movimentos: Ataque, Bloqueio, Esquiva, Ataque Forte. Revela resultado quando ambos escolherem.">
+  <title>Duelo de Cartas — P2P (simultâneo, multi-rodadas FIX)</title>
+  <meta name="description" content="Duelo 1x1 com WebRTC/PeerJS; movimentos: Ataque, Bloqueio, Esquiva, Ataque Forte. Agora suporta próximas rodadas corretamente.">
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root{
@@ -90,7 +90,6 @@
     let conn = null;   // DataConnection
     let peer = null;   // Peer local
     let role = "A";    // padrão
-    let myChoice = null;
 
     const $room = document.getElementById('room');
     const $connect = document.getElementById('connect');
@@ -114,14 +113,13 @@
       state = {
         hp:{A:HP_INICIAL, B:HP_INICIAL},
         pending:{A:null, B:null},  // escolhas da rodada
-        reveal:false,               // true quando ambos escolheram
+        reveal:false,               // true quando ambos escolherem
         last:{A:null, B:null},      // últimas escolhas reveladas
         delta:{A:0, B:0},           // dano recebido na última rodada
         round:1,
         status:"Rodada 1 — escolham seus movimentos."
       };
-      myChoice = null;
-      $log.textContent = "";
+      render();
     }
 
     function render(){
@@ -135,7 +133,8 @@
 
       // Ações
       $actions.innerHTML = "";
-      const canPick = conn && (!state.reveal) && state.hp[me] > 0 && state.hp[opp] > 0 && state.pending[me] == null;
+      // Para habilitar escolha, usamos um indicador recebido de A: pendingMeChosen
+      const canPick = !!conn && !state.reveal && state.hp[me] > 0 && state.hp[opp] > 0 && !state.pendingMeChosen;
       MOVES.forEach(mv=>{
         const b = document.createElement('button');
         b.className = 'move';
@@ -146,7 +145,7 @@
         $actions.appendChild(b);
       });
 
-      $next.disabled = !(conn && state.reveal);
+      $next.disabled = !(conn && state.reveal && state.hp.A>0 && state.hp.B>0);
       $reset.disabled = !conn;
     }
 
@@ -169,25 +168,19 @@
       const a = state.pending.A, b = state.pending.B;
       const dmgTo = {A:0, B:0};
 
-      // Dano bruto
       const rawA = DMG[a] || 0;
       const rawB = DMG[b] || 0;
 
-      // Defesa / regras
-      // Bloqueio reduz 3 do dano recebido
       const blockA = (a === "BLOQUEIO") ? BLOCK_VAL : 0;
       const blockB = (b === "BLOQUEIO") ? BLOCK_VAL : 0;
 
-      // Esquiva anula ATAQUE; não evita FORTE
       const dodgeA = (a === "ESQUIVA");
       const dodgeB = (b === "ESQUIVA");
 
-      // Dano que A recebe do B
       let incomingA = rawB;
       if(dodgeA && b === "ATAQUE") incomingA = 0;
       incomingA = Math.max(0, incomingA - blockA);
 
-      // Dano que B recebe do A
       let incomingB = rawA;
       if(dodgeB && a === "ATAQUE") incomingB = 0;
       incomingB = Math.max(0, incomingB - blockB);
@@ -201,7 +194,6 @@
       state.last = {A:a, B:b};
       state.reveal = true;
 
-      // Status
       const line = `Rodada ${state.round}: A ${labelMove(a)} × B ${labelMove(b)}  →  A sofreu ${dmgTo.A}, B sofreu ${dmgTo.B}.`;
       logLine(line);
       if(state.hp.A === 0 && state.hp.B === 0){
@@ -216,36 +208,37 @@
     }
 
     function choose(mv){
-      myChoice = mv;
       if(me === "A"){
         state.pending.A = mv;
-        // Se B já escolheu, resolve e envia; senão, apenas avisa progresso
         if(state.pending.B){
           resolveRound();
           sendState("reveal");
         }else{
-          sendState("progress"); // não revela ainda
+          state.status = `Rodada ${state.round} — sua escolha feita; aguardando oponente…`;
+          sendState("progress");
         }
         render();
       }else{
-        // B apenas envia sua escolha para A
+        // B envia escolha para A e localmente marca que já escolheu
         if(conn && conn.open){
           conn.send({type:"choice", move: mv});
         }
-        state.pending.B = mv; // localmente só para bloquear botões
+        state.pendingMeChosen = true; // bloqueia novos cliques até resolver/next
         state.status = `Rodada ${state.round} — escolha feita; aguardando oponente…`;
         render();
       }
     }
 
     function nextRound(){
-      if(me === "A"){
+      // Só A inicia próxima rodada e apenas se rodada foi revelada e ninguém venceu
+      if(me === "A" && state.reveal && state.hp.A>0 && state.hp.B>0){
         state.round += 1;
         state.pending = {A:null, B:null};
         state.reveal = false;
         state.last = {A:null, B:null};
         state.delta = {A:0, B:0};
         state.status = `Rodada ${state.round} — escolham seus movimentos.`;
+        // Ao enviar novo estado, indicar que B ainda NÃO escolheu
         sendState("state");
         render();
       }else if(conn && conn.open){
@@ -257,7 +250,6 @@
       if(me === "A"){
         resetState();
         sendState("state");
-        render();
       }else if(conn && conn.open){
         conn.send({type:"reset"});
       }
@@ -265,14 +257,15 @@
 
     function sendState(kind){
       if(!conn || !conn.open) return;
-      // Monta pacote: nunca envia a escolha pendente do oponente
+      // Este método é sempre chamado por A
       const payload = {
         hp: state.hp,
         round: state.round,
         reveal: state.reveal,
         last: state.reveal ? state.last : {A:null, B:null},
         delta: state.reveal ? state.delta : {A:0,B:0},
-        pendingMe: state.pending.B, // para B saber se já escolheu
+        // Diz ao B se ELE já escolheu (para desabilitar botões do lado dele).
+        pendingMeChosen: (state.pending.B !== null),
         status: state.status
       };
       conn.send({type: kind === "reveal" ? "reveal" : "state", state: payload});
@@ -287,7 +280,6 @@
             resolveRound();
             sendState("reveal");
           }else{
-            // Só progresso
             state.status = `Rodada ${state.round} — oponente escolheu; aguarde sua decisão.`;
             sendState("state");
           }
@@ -296,7 +288,7 @@
         return;
       }
       if(msg.type === "state"){
-        // B recebe estado sem revelar escolha do A
+        // B recebe estado (sem revelar a escolha de A)
         state = state || {};
         state.hp = msg.state.hp;
         state.round = msg.state.round;
@@ -304,6 +296,8 @@
         state.last = msg.state.last;
         state.delta = msg.state.delta;
         state.status = msg.state.status;
+        // Reset local de bloqueio de escolha; A informa se B já escolheu
+        state.pendingMeChosen = !!msg.state.pendingMeChosen;
         render();
         return;
       }
@@ -316,6 +310,8 @@
         state.last = msg.state.last;
         state.delta = msg.state.delta;
         state.status = msg.state.status;
+        // Após revelar, B não pode escolher até A chamar próxima rodada
+        state.pendingMeChosen = true;
         render();
         return;
       }
@@ -327,7 +323,9 @@
       }
       if(msg.type === "reset"){
         if(me === "A"){
-          resetMatch();
+          resetState();
+          sendState("state");
+          render();
         }
         return;
       }
@@ -376,7 +374,9 @@
             resetState();
             sendState("state");
           }else{
-            state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Conectado. Aguardando estado…", pending:{A:null,B:null}};
+            // Estado inicial do B: ainda não escolheu nesta rodada
+            state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Conectado. Aguardando estado…"};
+            state.pendingMeChosen = false;
           }
           render();
         });
@@ -390,7 +390,8 @@
     $reset.onclick = ()=> resetMatch();
 
     // UI inicial
-    state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Aguardando conexão…", pending:{A:null,B:null}};
+    state = {hp:{A:HP_INICIAL,B:HP_INICIAL},round:1,reveal:false,last:{A:null,B:null},delta:{A:0,B:0},status:"Aguardando conexão…"};
+    state.pendingMeChosen = false;
     render();
   </script>
 </body>
