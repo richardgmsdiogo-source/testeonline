@@ -1,511 +1,213 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Duelo X1 Online — Nomes + Energia (P2P)</title>
-  <meta name="description" content="Duelo 1x1 online via WebRTC/PeerJS. Nomes, energia acumulativa, escolhas simultâneas e números nas barras. Mobile-friendly.">
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    :root{
-      --bg:#0b0c14; --fg:#E8ECF1; --muted:#A9B3C1;
-      --panel:#121729; --edge:#2b3045;
-      --accent:#eab308; --danger:#ef4444; --ok:#22c55e; --energy:#60a5fa;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 system-ui,Segoe UI,Roboto,Arial; display:flex; justify-content:center; align-items:center; padding:16px}
-    .wrap{width:min(980px,100%); display:flex; flex-direction:column; gap:16px}
-    .card{background:var(--panel); border:1px solid var(--edge); border-radius:16px; padding:16px}
-    h1{margin:0 0 .25rem 0; font-size:clamp(20px,3.2vw,28px)}
-    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    .field{display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1}
-    label.small{font-size:12px; color:var(--muted)}
-    input[type=text]{width:100%; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
-    button{padding:.7rem 1rem; border-radius:10px; border:1px solid var(--edge); background:#19203a; color:#e8ecf1; cursor:pointer}
-    button[disabled]{opacity:.6; cursor:not-allowed}
-    .badge{display:inline-flex; gap:8px; align-items:center; padding:.35rem .6rem; border-radius:999px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
-    .hpbar, .enbar{height:16px; background:#0f1322; border:1px solid var(--edge); border-radius:999px; overflow:hidden; min-width:200px; position:relative}
-    .hpbar>.fill{height:100%; background:linear-gradient(90deg,var(--ok),#16a34a); width:100%}
-    .enbar>.fill{height:100%; background:linear-gradient(90deg,var(--energy),#2563eb); width:0%}
-    .val{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.7); pointer-events:none; user-select:none}
-    .arena{display:grid; grid-template-columns:1fr; gap:12px}
-    @media (min-width:760px){ .arena{grid-template-columns:1fr 1fr} }
-    .actions{display:grid; grid-template-columns:repeat(2, minmax(160px,1fr)); gap:12px}
-    .move{display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center; min-height:82px;
-          border:1px solid var(--edge); border-radius:12px; background:#10182e; text-align:center}
-    .move small{opacity:.8}
-    .move.playable{outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(234,179,8,.2)}
-    .muted{color:var(--muted)}
-    .status{font-weight:600}
-    .log{background:#0f1322; border:1px solid var(--edge); border-radius:12px; padding:12px; max-height:220px; overflow:auto; white-space:pre-wrap}
-    .name{font-weight:600}
-    .spacer{flex:1}
-
-    /* --- Mobile tweaks --- */
-    @media (max-width:640px){
-      body{align-items:flex-start}
-      .row{flex-direction:column; align-items:stretch}
-      .actions{grid-template-columns:1fr}
-      .hpbar, .enbar{min-width:0; width:100%}
-      button, input[type=text]{width:100%}
-      .radios{display:flex; gap:12px}
-    }
-  </style>
+  <title>L&amp;L Decorações — Portal do Cliente</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="rgb(116,97,103)">
+  <meta name="color-scheme" content="dark light">
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Duelo X1 Online — Nomes + Energia</h1>
-      <div class="row">
-        <div class="field">
-          <label for="room" class="small">Servidor / Sala</label>
-          <input id="room" type="text" placeholder="ex.: sintetizo-42" maxlength="24" />
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="L&L Decorações" class="logo"/>
+      <div>
+        <h1>L&amp;L Decorações</h1>
+        <small>Portal do Cliente — Contrato • Parcelas • Pix</small>
+      </div>
+    </div>
+    <nav class="right">
+      <span id="whoami" class="muted"></span>
+      <button id="btnLogout" class="btn ghost hidden">Sair</button>
+    </nav>
+  </header>
+
+  <main id="app">
+    <!-- LOGIN -->
+    <section id="loginView" class="panel">
+      <div class="card lg">
+        <h2>Entrar</h2>
+        <p class="muted">Acesse como <strong>Administrador</strong> ou <strong>Cliente</strong>.</p>
+        <div class="grid2">
+          <label>CPF
+            <input id="inpCPF" inputmode="numeric" placeholder="somente números" />
+          </label>
+          <label>Senha
+            <input id="inpSenha" type="password" placeholder="******" />
+          </label>
         </div>
-        <div class="field">
-          <label for="playerName" class="small">Seu nome</label>
-          <input id="playerName" type="text" placeholder="ex.: Richard" maxlength="20" />
+        <div class="row">
+          <button id="btnEntrar" class="btn">Entrar</button>
         </div>
-        <div class="field">
-          <label class="small">Posição</label>
-          <div class="radios">
-            <label><input type="radio" name="slot" value="1" checked> 1º</label>
-            <label><input type="radio" name="slot" value="2"> 2º</label>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="adminView" class="panel hidden">
+      <div class="toolbar card">
+        <h2>Administração</h2>
+        <nav class="tabs">
+          <button data-tab="usuarios" class="tab active">Clientes</button>
+          <button data-tab="novo" class="tab">Criar conta</button>
+          <button data-tab="config" class="tab">Config</button>
+        </nav>
+      </div>
+
+      <div id="tab-usuarios" class="card">
+        <table class="table">
+          <thead><tr><th>CPF</th><th>Nome</th><th>Serviço</th><th>Parcelas</th><th>Contrato</th><th style="width:280px">Ações</th></tr></thead>
+          <tbody id="tbUsers"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-novo" class="card hidden">
+        <h3>Novo cliente</h3>
+        <div class="grid2">
+          <label>CPF <input id="novoCPF" inputmode="numeric" placeholder="somente números" /></label>
+          <label>Nome <input id="novoNome" placeholder="Nome do cliente" /></label>
+          <label>Senha inicial <input id="novoSenha" placeholder="Defina uma senha" /></label>
+          <label>Serviço/Plano <input id="novoServico" placeholder="Ex.: Evento, Internet 300Mb..." /></label>
+          <label>Contrato (URL pública) <input id="novoContratoUrl" placeholder="https://..." /></label>
+          <label>ou Upload do PDF (local) <input id="novoContratoFile" type="file" accept="application/pdf" /></label>
+        </div>
+        <div class="row"><button id="btnCriar" class="btn">Criar cliente</button></div>
+      </div>
+
+      <div id="tab-config" class="card hidden">
+        <p><strong>Modo de dados:</strong> <code id="modeLabel">LOCAL</code></p>
+        <p class="muted">Local-first (grátis). Para multi-dispositivo real, ative Supabase no <code>config.js</code>.</p>
+      </div>
+
+      <div id="editorBox" class="card hidden">
+        <div class="row between">
+          <h3>Gerenciar <span id="edNome"></span> <small class="muted">(<span id="edCpf"></span>)</small></h3>
+          <div class="tabs small">
+            <button data-tab="ed-dados" class="tab active">Dados</button>
+            <button data-tab="ed-contrato" class="tab">Contrato</button>
+            <button data-tab="ed-parcelas" class="tab">Parcelas</button>
           </div>
         </div>
-        <button id="connect">Conectar</button>
-        <button id="leave" disabled>Sair da sala</button>
+
+        <div id="tab-ed-dados" class="section">
+          <div class="grid2">
+            <label>Nome <input id="edNomeIn" /></label>
+            <label>Senha (nova) <input id="edSenhaIn" placeholder="deixe vazio p/ manter" /></label>
+            <label>Serviço/Plano <input id="edServicoIn" /></label>
+          </div>
+          <div class="row"><button id="btnSalvarDados" class="btn">Salvar dados</button></div>
+        </div>
+
+        <div id="tab-ed-contrato" class="section hidden">
+          <div class="grid2">
+            <label>Contrato (URL pública) <input id="edContratoUrlIn" placeholder="https://..." /></label>
+            <label>ou Upload PDF (local) <input id="edContratoFile" type="file" accept="application/pdf" /></label>
+          </div>
+          <div class="row">
+            <a id="edContratoLink" target="_blank" class="btn ghost">Abrir em nova aba</a>
+            <button id="btnSalvarContrato" class="btn">Salvar contrato</button>
+          </div>
+        </div>
+
+        <div id="tab-ed-parcelas" class="section hidden">
+          <table class="table">
+            <thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Status</th><th style="width:280px">Ações</th></tr></thead>
+            <tbody id="tbParcelas"></tbody>
+          </table>
+          <div class="grid2">
+            <label>Vencimento <input id="parVenc" type="date" /></label>
+            <label>Valor (R$) <input id="parVal" type="number" step="0.01" /></label>
+            <label>Status
+              <select id="parStatus">
+                <option value="aberto">aberto</option>
+                <option value="pago">pago</option>
+                <option value="vencido">vencido</option>
+              </select>
+            </label>
+          </div>
+          <div class="row"><button id="btnAddParcela" class="btn">Adicionar parcela</button></div>
+        </div>
       </div>
-      <div class="row">
-        <span id="you" class="badge">Você: ?</span>
-        <span id="conn" class="badge">Desconectado</span>
-        <span class="spacer"></span>
-        <span id="round" class="badge">Rodada —</span>
+    </section>
+
+    <!-- CLIENTE -->
+    <section id="clienteView" class="panel hidden">
+      <div class="card">
+        <div class="row between">
+          <h2 id="cliSaudacao">Olá 👋</h2>
+          <div class="tabs">
+            <button data-tab="c-contrato" class="tab active">Contrato</button>
+            <button data-tab="c-parcelas" class="tab">Parcelas</button>
+          </div>
+        </div>
+
+        <div id="tab-c-contrato" class="section">
+          <div class="pdfbox">
+            <div class="pdfheader row between">
+              <div>
+                <strong>Contrato:</strong> <span id="cContratoNumero">—</span> ·
+                <strong>Serviço:</strong> <span id="cContratoServico">—</span> ·
+                <strong>Status:</strong> <span id="cContratoStatus">—</span>
+              </div>
+              <div class="row gap">
+                <button id="btnVerInApp" class="btn ghost">Ver no app</button>
+                <a id="btnAbrirAba" class="btn" target="_blank">Abrir em nova aba</a>
+              </div>
+            </div>
+            <div class="pdfviewport">
+              <object id="pdfObject" type="application/pdf" data="" aria-label="Visualizador de PDF">
+                <div class="muted center">Não foi possível embutir o PDF. Use o botão “Abrir em nova aba”.</div>
+              </object>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-c-parcelas" class="section hidden">
+          <table class="table">
+            <thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Status</th><th style="width:220px">Ações</th></tr></thead>
+            <tbody id="cListaParcelas"></tbody>
+          </table>
+        </div>
       </div>
-      <small class="muted">Abra no PC e no celular. HTTPS (GitHub Pages) recomendado. Se travar após um jogo, use “Sair da sala” e reconecte.</small>
-    </div>
+    </section>
+  </main>
 
-    <div class="card arena">
-      <div>
-        <div class="row"><strong class="name" id="oppNameHead">Oponente</strong></div>
-        <div class="hpbar" data-max="15"><div id="oppHP" class="fill"></div><span class="val" id="oppHPText">15/15</span></div>
-        <div class="enbar" style="margin-top:6px;" data-max="10"><div id="oppEN" class="fill"></div><span class="val" id="oppENText">0/10</span></div>
+  <!-- Modais -->
+  <dialog id="payModal">
+    <form method="dialog" class="modal">
+      <h3>Pagar com Pix</h3>
+      <p><strong>Parcela:</strong> <span id="payParcelaId"></span></p>
+      <p><strong>Valor:</strong> R$ <span id="payValor"></span></p>
+      <canvas id="qrCanvas" width="256" height="256"></canvas>
+      <div class="codebox" id="pixCode"></div>
+      <div class="row gap">
+        <button id="btnCopy" type="button" class="btn ghost">Copiar código</button>
+        <button id="btnClose" value="close" class="btn">Fechar</button>
       </div>
-      <div>
-        <div class="row"><strong class="name" id="meNameHead">Você</strong></div>
-        <div class="hpbar" data-max="15"><div id="meHP" class="fill"></div><span class="val" id="meHPText">15/15</span></div>
-        <div class="enbar" style="margin-top:6px;" data-max="10"><div id="meEN" class="fill"></div><span class="val" id="meENText">2/10</span></div>
+    </form>
+  </dialog>
+
+  <dialog id="proofModalClient">
+    <form method="dialog" class="modal">
+      <h3>Enviar comprovante</h3>
+      <p><strong>Parcela:</strong> <span id="proofParcelaId"></span></p>
+      <input type="file" id="proofFile" accept="image/*,application/pdf" />
+      <div class="row gap">
+        <button id="btnSendProof" type="button" class="btn">Enviar</button>
+        <button value="close" class="btn ghost">Cancelar</button>
       </div>
-    </div>
+      <small class="muted">Demo: salvo no navegador (localStorage).</small>
+    </form>
+  </dialog>
 
-    <div class="card">
-      <div id="status" class="row status">Status: —</div>
-      <div id="actions" class="actions"></div>
-      <div class="row">
-        <button id="next" disabled>Próxima rodada</button>
-        <button id="reset" disabled>Reiniciar partida</button>
-      </div>
-      <div class="log" id="log"></div>
-      <small class="muted">Movimentos: <b>Ataque</b> (3 dano / 1 EN), <b>Ataque Forte</b> (5 dano / 4 EN), <b>Bloqueio</b> (-3 dano recebido / 1 EN), <b>Esquiva</b> (anula Ataque / 2 EN). Energia +2 por rodada (máx. 10).</small>
-    </div>
-  </div>
+  <div id="toast" class="toast hidden"></div>
 
-  <script>
-    // ===== Config =====
-    const HP_MAX = 15;
-    const EN_MAX = 10;
-    const EN_INICIAL = 2;
-    const EN_GAIN = 2;
-    const MOVES = ["ATAQUE", "FORTE", "BLOQUEIO", "ESQUIVA"];
-    const COST = { ATAQUE:1, FORTE:4, BLOQUEIO:1, ESQUIVA:2 };
-    const DMG = { ATAQUE:3, FORTE:5 };
-    const BLOCK_VAL = 3;
+  <footer class="foot">
+    <small>Criado por Richard Alex @richard.gms</small>
+  </footer>
 
-    // ===== Estado de conexão =====
-    let me = "p1";         // "p1" ou "p2"
-    let opp = "p2";
-    let slot = "1";        // "1" ou "2"
-    let myName = "Jogador";
-    let roomCode = "";
-    let conn = null;       // PeerJS DataConnection
-    let peer = null;       // PeerJS Peer
-
-    // ===== Estado do jogo (p1 é autoridade) =====
-    let state = {
-      names:{p1:"—",p2:"—"},
-      hp:{p1:HP_MAX, p2:HP_MAX},
-      en:{p1:EN_INICIAL, p2:EN_INICIAL},
-      pending:{p1:null, p2:null},
-      pendingChosen:{p1:false, p2:false},
-      reveal:false,
-      last:{p1:null, p2:null},
-      delta:{p1:0, p2:0},
-      round:1,
-      status:"Aguardando conexão…"
-    };
-
-    // ===== UI refs =====
-    const $room = document.getElementById('room');
-    const $playerName = document.getElementById('playerName');
-    const $connect = document.getElementById('connect');
-    const $leave = document.getElementById('leave');
-    const $you = document.getElementById('you');
-    const $conn = document.getElementById('conn');
-    const $oppNameHead = document.getElementById('oppNameHead');
-    const $meNameHead = document.getElementById('meNameHead');
-    const $oppHP = document.getElementById('oppHP');
-    const $meHP = document.getElementById('meHP');
-    const $oppEN = document.getElementById('oppEN');
-    const $meEN = document.getElementById('meEN');
-    const $oppHPText = document.getElementById('oppHPText');
-    const $meHPText = document.getElementById('meHPText');
-    const $oppENText = document.getElementById('oppENText');
-    const $meENText = document.getElementById('meENText');
-    const $status = document.getElementById('status');
-    const $actions = document.getElementById('actions');
-    const $next = document.getElementById('next');
-    const $reset = document.getElementById('reset');
-    const $log = document.getElementById('log');
-    const $round = document.getElementById('round');
-
-    document.querySelectorAll('input[name="slot"]').forEach(r=>{
-      r.addEventListener('change', ()=>{ slot = r.value; });
-    });
-
-    // ===== Utils =====
-    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
-    function pct(cur,max){ return Math.round(clamp(cur/max*100, 0, 100)); }
-    function labelMove(mv){ return mv==="ATAQUE"?"Ataque":mv==="FORTE"?"Ataque Forte":mv==="BLOQUEIO"?"Bloqueio":mv==="ESQUIVA"?"Esquiva":"Espera"; }
-    function logLine(txt){ $log.textContent = (txt + "\n" + $log.textContent).slice(0, 6000); }
-
-    function resetState(names){
-      state = {
-        names: names || {p1:"Jogador 1", p2:"Jogador 2"},
-        hp:{p1:HP_MAX, p2:HP_MAX},
-        en:{p1:EN_INICIAL, p2:EN_INICIAL},
-        pending:{p1:null, p2:null},
-        pendingChosen:{p1:false, p2:false},
-        reveal:false,
-        last:{p1:null, p2:null},
-        delta:{p1:0, p2:0},
-        round:1,
-        status:"Rodada 1 — escolham seus movimentos."
-      };
-      $log.textContent = "";
-      render();
-    }
-
-    // ===== Render =====
-    function updateBars(){
-      // Opponent
-      $oppHP.style.width = pct(state.hp[opp], HP_MAX) + "%";
-      $oppHPText.textContent = state.hp[opp] + "/" + HP_MAX;
-      $oppEN.style.width = pct(state.en[opp], EN_MAX) + "%";
-      $oppENText.textContent = state.en[opp] + "/" + EN_MAX;
-      // Me
-      $meHP.style.width = pct(state.hp[me], HP_MAX) + "%";
-      $meHPText.textContent = state.hp[me] + "/" + HP_MAX;
-      $meEN.style.width = pct(state.en[me], EN_MAX) + "%";
-      $meENText.textContent = state.en[me] + "/" + EN_MAX;
-    }
-
-    function render(){
-      $meNameHead.textContent = state.names[me] || "Você";
-      $oppNameHead.textContent = state.names[opp] || "Oponente";
-      $round.textContent = `Rodada ${state.round}`;
-      $status.textContent = "Status: " + (state.status || "—");
-      $you.textContent = `Você: ${$meNameHead.textContent} (${slot}º)`;
-
-      updateBars();
-
-      // Ações
-      $actions.innerHTML = "";
-      const myChosen = state.pendingChosen[me] === true;
-      const alive = state.hp.p1>0 && state.hp.p2>0;
-      const canPick = !!conn && !state.reveal && alive && !myChosen;
-      ["ATAQUE","FORTE","BLOQUEIO","ESQUIVA"].forEach(mv=>{
-        const b = document.createElement('button');
-        b.className = 'move';
-        b.innerHTML = `<div>${labelMove(mv)}</div><small>Custo ${COST[mv]} EN</small>`;
-        if(canPick && state.en[me] >= COST[mv]) b.classList.add('playable');
-        b.disabled = !canPick || state.en[me] < COST[mv];
-        b.onclick = ()=> choose(mv);
-        $actions.appendChild(b);
-      });
-
-      $next.disabled = !(conn && state.reveal && state.hp.p1>0 && state.hp.p2>0);
-      $reset.disabled = !conn;
-      $leave.disabled = !peer;
-    }
-
-    // ===== Regras =====
-    function validateChoice(move, energy){
-      if(!move) return "ESPERA";
-      const cost = COST[move] || 0;
-      if(energy < cost) return "ESPERA";
-      return move;
-    }
-
-    function resolveRound(){
-      const m1 = validateChoice(state.pending.p1, state.en.p1);
-      const m2 = validateChoice(state.pending.p2, state.en.p2);
-
-      const raw1 = (m1==="ATAQUE")?3:(m1==="FORTE")?5:0;
-      const raw2 = (m2==="ATAQUE")?3:(m2==="FORTE")?5:0;
-
-      const block1 = (m1==="BLOQUEIO")?BLOCK_VAL:0;
-      const block2 = (m2==="BLOQUEIO")?BLOCK_VAL:0;
-
-      const dodge1 = (m1==="ESQUIVA");
-      const dodge2 = (m2==="ESQUIVA");
-
-      let inc1 = raw2;
-      if(dodge1 && m2==="ATAQUE") inc1 = 0;
-      inc1 = Math.max(0, inc1 - block1);
-
-      let inc2 = raw1;
-      if(dodge2 && m1==="ATAQUE") inc2 = 0;
-      inc2 = Math.max(0, inc2 - block2);
-
-      // Gasta energia válidos
-      state.en.p1 = clamp(state.en.p1 - (COST[m1]||0), 0, EN_MAX);
-      state.en.p2 = clamp(state.en.p2 - (COST[m2]||0), 0, EN_MAX);
-
-      // Aplica dano
-      state.hp.p1 = clamp(state.hp.p1 - inc1, 0, HP_MAX);
-      state.hp.p2 = clamp(state.hp.p2 - inc2, 0, HP_MAX);
-      state.delta = {p1:inc1, p2:inc2};
-      state.last = {p1:m1, p2:m2};
-      state.reveal = true;
-
-      const n1 = state.names.p1, n2 = state.names.p2;
-      logLine(`Rodada ${state.round}: ${n1} ${labelMove(m1)} × ${n2} ${labelMove(m2)} → ${n1} sofreu ${inc1}, ${n2} sofreu ${inc2}. (EN: ${state.en.p1}/${state.en.p2})`);
-
-      if(state.hp.p1===0 && state.hp.p2===0){
-        state.status = `Rodada ${state.round} — Empate técnico!`;
-      }else if(state.hp.p1===0){
-        state.status = `Rodada ${state.round} — ${n2} venceu o duelo!`;
-      }else if(state.hp.p2===0){
-        state.status = `Rodada ${state.round} — ${n1} venceu o duelo!`;
-      }else{
-        state.status = `Rodada ${state.round} concluída. Clique "Próxima rodada".`;
-      }
-    }
-
-    function choose(mv){
-      const key = me, other = opp;
-      if(slot==="1"){
-        state.pending[key] = mv;
-        state.pendingChosen[key] = true;
-        if(state.pending[other]){
-          resolveRound();
-          if(state.hp.p1>0) state.en.p1 = clamp(state.en.p1 + EN_GAIN, 0, EN_MAX);
-          if(state.hp.p2>0) state.en.p2 = clamp(state.en.p2 + EN_GAIN, 0, EN_MAX);
-          sendState("reveal");
-        }else{
-          state.status = `Rodada ${state.round} — ${state.names[key]} escolheu; aguardando ${state.names[other]}…`;
-          sendState("state");
-        }
-        render();
-      }else{
-        if(conn && conn.open){ conn.send({type:"choice", move: mv}); }
-        state.pendingChosen[key] = true;
-        state.status = `Rodada ${state.round} — escolha feita; aguardando ${state.names[opp]}…`;
-        render();
-      }
-    }
-
-    function nextRound(){
-      if(slot==="1" && state.reveal && state.hp.p1>0 && state.hp.p2>0){
-        state.round += 1;
-        state.pending = {p1:null, p2:null};
-        state.pendingChosen = {p1:false, p2:false};
-        state.reveal = false;
-        state.last = {p1:null, p2:null};
-        state.delta = {p1:0, p2:0};
-        state.status = `Rodada ${state.round} — ${state.names.p1} e ${state.names.p2}, escolham seus movimentos.`;
-        sendState("state");
-        render();
-      }else if(conn && conn.open){
-        conn.send({type:"next"});
-      }
-    }
-
-    function resetMatch(){
-      if(slot==="1"){
-        resetState(state.names);
-        sendState("state");
-      }else if(conn && conn.open){
-        conn.send({type:"reset"});
-      }
-    }
-
-    // ===== Sync A<->B =====
-    function sendState(kind){
-      if(!conn || !conn.open) return;
-      const payload = {
-        names: state.names,
-        hp: state.hp,
-        en: state.en,
-        round: state.round,
-        reveal: state.reveal,
-        last: state.reveal ? state.last : {p1:null, p2:null},
-        delta: state.reveal ? state.delta : {p1:0, p2:0},
-        pendingMeChosen: state.pendingChosen.p2,
-        status: state.status
-      };
-      conn.send({type: kind==="reveal" ? "reveal" : "state", state: payload});
-    }
-
-    function handleMessage(msg){
-      if(msg.type==="setName"){
-        if(slot==="1"){
-          state.names.p2 = (""+msg.name).slice(0,20) || "Jogador 2";
-          sendState("state"); render();
-        }
-        return;
-      }
-      if(msg.type==="choice"){
-        if(slot==="1"){
-          state.pending.p2 = msg.move;
-          state.pendingChosen.p2 = true;
-          if(state.pending.p1){
-            resolveRound();
-            if(state.hp.p1>0) state.en.p1 = clamp(state.en.p1 + EN_GAIN, 0, EN_MAX);
-            if(state.hp.p2>0) state.en.p2 = clamp(state.en.p2 + EN_GAIN, 0, EN_MAX);
-            sendState("reveal");
-          }else{
-            state.status = `Rodada ${state.round} — ${state.names.p2} escolheu; aguarde sua decisão.`;
-            sendState("state");
-          }
-          render();
-        }
-        return;
-      }
-      if(msg.type==="state"){
-        // p2 recebe estado (sem revelar)
-        state.names = msg.state.names;
-        state.hp = msg.state.hp;
-        state.en = msg.state.en;
-        state.round = msg.state.round;
-        state.reveal = msg.state.reveal;
-        state.last = msg.state.last;
-        state.delta = msg.state.delta;
-        state.status = msg.state.status;
-        state.pendingChosen = state.pendingChosen || {p1:false,p2:false};
-        state.pendingChosen.p2 = !!msg.state.pendingMeChosen;
-        render();
-        return;
-      }
-      if(msg.type==="reveal"){
-        // p2 recebe resultado
-        state.names = msg.state.names;
-        state.hp = msg.state.hp;
-        state.en = msg.state.en;
-        state.round = msg.state.round;
-        state.reveal = msg.state.reveal;
-        state.last = msg.state.last;
-        state.delta = msg.state.delta;
-        state.status = msg.state.status;
-        state.pendingChosen = {p1:true, p2:true};
-        render();
-        return;
-      }
-      if(msg.type==="next"){ if(slot==="1"){ nextRound(); } return; }
-      if(msg.type==="reset"){ if(slot==="1"){ resetMatch(); } return; }
-    }
-
-    // ===== Conexão PeerJS =====
-    function connect(){
-      roomCode = ($room.value||"").trim().toLowerCase();
-      myName = ($playerName.value||"").trim() || "Jogador";
-      if(!roomCode){ alert("Informe a palavra-chave da sala."); return; }
-      me = (slot==="1") ? "p1" : "p2";
-      opp = (slot==="1") ? "p2" : "p1";
-
-      if(slot==="1"){
-        resetState({p1: myName, p2: "Aguardando…"});
-      }else{
-        state = {names:{p1:"Aguardando…", p2:myName}, hp:{p1:HP_MAX,p2:HP_MAX}, en:{p1:EN_INICIAL,p2:EN_INICIAL},
-                 pending:{p1:null,p2:null}, pendingChosen:{p1:false,p2:false}, reveal:false,
-                 last:{p1:null,p2:null}, delta:{p1:0,p2:0}, round:1, status:"Conectando…"};
-      }
-      render();
-      $conn.textContent = 'Conectando…';
-
-      const myId = `${roomCode}-${slot}`;
-      const otherId = `${roomCode}-${slot==="1"?"2":"1"}`;
-
-      const peerConfig = {
-        debug: 2,
-        config: {iceServers:[
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" }
-        ]}
-      };
-      peer = new Peer(myId, peerConfig);
-
-      peer.on('open', id=>{
-        tryDialRepeated(otherId);
-      });
-
-      peer.on('connection', c=> setupConn(c));
-      peer.on('error', err=>{
-        console.error(err);
-        if(err.type === 'unavailable-id'){
-          $conn.textContent = 'ID em uso. Clique "Sair da sala" e reconecte, ou troque 1º/2º.';
-        }else{
-          $conn.textContent = 'Erro: ' + err.type;
-        }
-      });
-    }
-
-    function tryDialRepeated(otherId){
-      function tryDial(){
-        if(conn && conn.open) return;
-        const c = peer.connect(otherId, {reliable:true});
-        setupConn(c);
-      }
-      tryDial();
-      const dialInt = setInterval(()=>{
-        if(conn && conn.open){ clearInterval(dialInt); return; }
-        tryDial();
-      }, 1000);
-    }
-
-    function setupConn(c){
-      c.on('open', ()=>{
-        conn = c;
-        $conn.textContent = 'Conectado';
-        $leave.disabled = false;
-        if(slot==="1"){
-          sendState("state");
-        }else{
-          conn.send({type:"setName", name: myName});
-        }
-        render();
-      });
-      c.on('data', data=> handleMessage(data));
-      c.on('close', ()=>{ $conn.textContent = 'Desconectado'; conn = null; render(); });
-    }
-
-    function leave(){
-      try{ conn && conn.close(); }catch{}
-      try{ peer && peer.destroy(); }catch{}
-      conn = null; peer = null;
-      $conn.textContent = 'Desconectado';
-      $leave.disabled = true;
-    }
-    window.addEventListener('beforeunload', leave);
-
-    // ===== Eventos UI =====
-    document.getElementById('connect').onclick = connect;
-    document.getElementById('leave').onclick = leave;
-    document.getElementById('next').onclick = ()=> nextRound();
-    document.getElementById('reset').onclick = ()=> resetMatch();
-
-    // ===== Inicial =====
-    render();
-  </script>
+  <script src="config.js"></script>
+  <script src="lib/pix.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
