@@ -1,0 +1,73 @@
+*{box-sizing:border-box}
+:root{
+  --brand:rgb(116,97,103);
+  --brand-dark:rgb(63,53,56);
+  --brand-light:rgb(133,111,118);
+  --bg: color-mix(in srgb, var(--brand-dark) 40%, black);
+  --surface: color-mix(in srgb, var(--brand-dark) 25%, black);
+  --card: color-mix(in srgb, var(--brand) 20%, black);
+  --line: color-mix(in srgb, white 12%, var(--brand-dark));
+  --text: #fff7fb;
+  --muted: #ffe3ef;
+  --ok:#35d6a0; --warn:#ffd48a; --bad:#ff8aa1;
+  --radius:14px; --shadow:0 8px 24px rgba(0,0,0,.25);
+}
+html,body{margin:0;padding:0;background:linear-gradient(180deg,var(--bg),var(--surface));color:var(--text);font:16px/1.55 system-ui,Segoe UI,Inter,Roboto,Arial}
+.topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--brand-dark) 45%, black);backdrop-filter:saturate(1.2) blur(8px);border-bottom:1px solid var(--line);}
+.topbar .brand{display:flex;align-items:center;gap:12px;padding:14px 20px}
+.logo{width:44px;height:44px;border-radius:999px;border:1px solid var(--line);object-fit:cover}
+.topbar .brand h1{margin:0;font-size:18px}
+.topbar .brand small{color:var(--muted)}
+.topbar .right{margin-left:auto;padding:8px 16px;display:flex;align-items:center;gap:10px}
+.muted{color:var(--muted)}
+main{max-width:1150px;margin:24px auto;padding:0 16px}
+
+.panel{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:14px 0;box-shadow:var(--shadow)}
+.card.lg{padding:22px}
+.toolbar{display:flex;align-items:center;justify-content:space-between}
+
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.row{display:flex;align-items:center;gap:10px}
+.row.between{justify-content:space-between}
+.row.gap{gap:12px}
+
+input,select{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:color-mix(in srgb, var(--brand-dark) 20%, black);color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--brand-light);outline-offset:1px}
+
+.btn{all:unset;background:linear-gradient(180deg,var(--brand-light),var(--brand));padding:10px 14px;border-radius:12px;cursor:pointer;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.btn.ghost{background:color-mix(in srgb, var(--brand-dark) 30%, black);border:1px solid var(--line);color:var(--text)}
+.btn.ghost.danger{border-color:color-mix(in srgb, #ff8aa1 50%, var(--line));}
+.btn:active{transform:translateY(1px)}
+
+.tabs{display:flex;gap:8px}
+.tab{all:unset;padding:8px 12px;border-radius:999px;cursor:pointer;background:color-mix(in srgb, var(--brand-dark) 35%, black);color:var(--muted);border:1px solid var(--line)}
+.tab.active{background:linear-gradient(180deg,var(--brand-light),var(--brand));color:#fff;border-color:transparent}
+
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid var(--line);padding:12px 10px;text-align:left}
+.table tr:hover{background:color-mix(in srgb, var(--brand-dark) 20%, black)}
+
+.badge{padding:4px 10px;border-radius:999px;font-size:12px}
+.badge.pago{background:#10372a;border:1px solid #1d6a4f;color:#8af2c6}
+.badge.aberto{background:#3a2e11;border:1px solid #6b5522;color:#ffd27a}
+.badge.vencido{background:#3a1212;border:1px solid #7a2424;color:#ff9e9e}
+
+.section{margin-top:12px}
+.hidden{display:none}
+
+.pdfbox{display:flex;flex-direction:column;gap:12px}
+.pdfheader{padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.pdfviewport{height:70vh;background:color-mix(in srgb, var(--brand-dark) 20%, black);border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pdfviewport object{width:100%;height:100%}
+
+.modal{min-width:320px;max-width:520px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+
+.codebox{margin:12px 0;padding:8px;border:1px dashed var(--line);border-radius:10px;word-break:break-all;background:color-mix(in srgb, var(--brand-dark) 25%, black)}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:color-mix(in srgb, var(--brand-dark) 35%, black);border:1px solid var(--line);padding:10px 16px;border-radius:12px;box-shadow:var(--shadow)}
+.toast.hidden{display:none}
+
+.foot{padding:32px 16px;text-align:center;color:var(--muted)}
