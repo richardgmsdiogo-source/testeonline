@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Duelo X1 Online — Nomes + Energia (P2P)</title>
-  <meta name="description" content="Duelo 1x1 online via WebRTC/PeerJS. Nomes dos jogadores, energia acumulativa, movimentos com custo, escolhas simultâneas e números nas barras.">
+  <meta name="description" content="Duelo 1x1 online via WebRTC/PeerJS. Nomes, energia acumulativa, escolhas simultâneas e números nas barras. Mobile-friendly.">
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root{
@@ -19,7 +19,9 @@
     .card{background:var(--panel); border:1px solid var(--edge); border-radius:16px; padding:16px}
     h1{margin:0 0 .25rem 0; font-size:clamp(20px,3.2vw,28px)}
     .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    input[type=text]{flex:1; min-width:160px; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
+    .field{display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1}
+    label.small{font-size:12px; color:var(--muted)}
+    input[type=text]{width:100%; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
     button{padding:.7rem 1rem; border-radius:10px; border:1px solid var(--edge); background:#19203a; color:#e8ecf1; cursor:pointer}
     button[disabled]{opacity:.6; cursor:not-allowed}
     .badge{display:inline-flex; gap:8px; align-items:center; padding:.35rem .6rem; border-radius:999px; border:1px solid var(--edge); background:#0f1322; color:#e8ecf1}
@@ -39,6 +41,16 @@
     .log{background:#0f1322; border:1px solid var(--edge); border-radius:12px; padding:12px; max-height:220px; overflow:auto; white-space:pre-wrap}
     .name{font-weight:600}
     .spacer{flex:1}
+
+    /* --- Mobile tweaks --- */
+    @media (max-width:640px){
+      body{align-items:flex-start}
+      .row{flex-direction:column; align-items:stretch}
+      .actions{grid-template-columns:1fr}
+      .hpbar, .enbar{min-width:0; width:100%}
+      button, input[type=text]{width:100%}
+      .radios{display:flex; gap:12px}
+    }
   </style>
 </head>
 <body>
@@ -46,10 +58,21 @@
     <div class="card">
       <h1>Duelo X1 Online — Nomes + Energia</h1>
       <div class="row">
-        <input id="room" type="text" placeholder="Palavra-chave da sala (ex.: sintetizo-42)" maxlength="24" />
-        <input id="playerName" type="text" placeholder="Seu nome (ex.: Richard)" maxlength="20" />
-        <label><input type="radio" name="slot" value="1" checked> 1º</label>
-        <label><input type="radio" name="slot" value="2"> 2º</label>
+        <div class="field">
+          <label for="room" class="small">Servidor / Sala</label>
+          <input id="room" type="text" placeholder="ex.: sintetizo-42" maxlength="24" />
+        </div>
+        <div class="field">
+          <label for="playerName" class="small">Seu nome</label>
+          <input id="playerName" type="text" placeholder="ex.: Richard" maxlength="20" />
+        </div>
+        <div class="field">
+          <label class="small">Posição</label>
+          <div class="radios">
+            <label><input type="radio" name="slot" value="1" checked> 1º</label>
+            <label><input type="radio" name="slot" value="2"> 2º</label>
+          </div>
+        </div>
         <button id="connect">Conectar</button>
         <button id="leave" disabled>Sair da sala</button>
       </div>
@@ -99,7 +122,7 @@
     const BLOCK_VAL = 3;
 
     // ===== Estado de conexão =====
-    let me = "p1";         // "p1" ou "p2" (do ponto de vista desta aba)
+    let me = "p1";         // "p1" ou "p2"
     let opp = "p2";
     let slot = "1";        // "1" ou "2"
     let myName = "Jogador";
@@ -107,7 +130,7 @@
     let conn = null;       // PeerJS DataConnection
     let peer = null;       // PeerJS Peer
 
-    // ===== Estado do jogo (mantido por p1) =====
+    // ===== Estado do jogo (p1 é autoridade) =====
     let state = {
       names:{p1:"—",p2:"—"},
       hp:{p1:HP_MAX, p2:HP_MAX},
@@ -149,7 +172,7 @@
       r.addEventListener('change', ()=>{ slot = r.value; });
     });
 
-    // ===== Util =====
+    // ===== Utils =====
     function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
     function pct(cur,max){ return Math.round(clamp(cur/max*100, 0, 100)); }
     function labelMove(mv){ return mv==="ATAQUE"?"Ataque":mv==="FORTE"?"Ataque Forte":mv==="BLOQUEIO"?"Bloqueio":mv==="ESQUIVA"?"Esquiva":"Espera"; }
