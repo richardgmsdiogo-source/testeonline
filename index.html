@@ -1,213 +1,673 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>L&amp;L Decorações — Portal do Cliente</title>
-  <link rel="stylesheet" href="styles.css" />
-  <meta name="theme-color" content="rgb(116,97,103)">
-  <meta name="color-scheme" content="dark light">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shadowdraw — Web (emoji edition)</title>
+<style>
+:root{
+  --bg:#0a0a0e; --fg:#eaecef; --muted:#9aa3b2; --accent:#a636ff;
+  --panel:#141624; --danger:#7f2424; --border:#2a2f3d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 50% 15%,#101421,#000);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Arial}
+.hidden{display:none}
+.muted{color:var(--muted)}
+.top{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:#0b0e16;position:sticky;top:0}
+.right{margin-left:auto}
+.screen{max-width:1100px;margin:18px auto;padding:16px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+.panel.danger{background:#1e1216;border-color:#3a1a1a}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label{display:block;margin-top:8px;color:var(--muted)}
+input,select{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:#0b0e16;color:var(--fg);margin-top:4px}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 16px;cursor:pointer}
+button:hover{filter:brightness(1.12)}
+.btn-small{padding:6px 10px;border-radius:8px;font-size:13px}
+.hud{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;margin:10px 0;display:flex;flex-wrap:wrap;gap:8px}
+.hud-row{display:flex;gap:12px}
+.log{min-height:90px;background:#0b0e16;border:1px dashed var(--border);border-radius:12px;padding:10px;margin:10px 0;font-size:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.option{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:.15s}
+.option:hover{transform:translateY(-4px);filter:brightness(1.08)}
+.hand{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:14px 0}
+.card{width:180px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;transition:.15s}
+.card:hover{transform:translateY(-4px);filter:brightness(1.08)}
+.card .head{display:flex;justify-content:space-between;margin-bottom:6px;font-weight:600}
+.card .tags{color:var(--muted);font-size:12px}
+.inventory{margin-top:16px}
+.pill{display:inline-block;padding:4px 8px;border:1px solid var(--border);border-radius:999px;margin:4px 6px 0 0;font-size:12px}
+.pill.badge{background:#101526}
+.pill.good{border-color:#28492e;background:#102315}
+.pill.warn{border-color:#4a3a1a;background:#1e1406}
+.preview{display:flex;gap:12px;align-items:center}
+.preview-emoji{font-size:42px}
+</style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <img src="assets/logo.png" alt="L&L Decorações" class="logo"/>
-      <div>
-        <h1>L&amp;L Decorações</h1>
-        <small>Portal do Cliente — Contrato • Parcelas • Pix</small>
+  <div class="top">
+    <b>Shadowdraw</b>
+    <span id="sanityTag" class="pill">Checando...</span>
+    <span class="right"><span class="pill">Protótipo Web (emoji)</span></span>
+  </div>
+
+  <!-- TELA INICIAL -->
+  <section id="screen-start" class="screen">
+    <div class="cols">
+      <div class="panel">
+        <h1>Nova jornada</h1>
+        <label>Nome</label>
+        <input id="playerName" type="text" placeholder="Aventureiro(a)"/>
+        <label>Classe</label>
+        <select id="playerClass"></select>
+        <div style="margin-top:12px"><button id="startBtn">Iniciar</button></div>
+        <div id="startError" class="pill warn hidden"></div>
+      </div>
+      <div class="panel">
+        <h3>Prévia da classe</h3>
+        <div class="preview">
+          <div id="classPreviewEmoji" class="preview-emoji">⚔️</div>
+          <div id="classPreviewText" class="muted">Selecione uma classe</div>
+        </div>
       </div>
     </div>
-    <nav class="right">
-      <span id="whoami" class="muted"></span>
-      <button id="btnLogout" class="btn ghost hidden">Sair</button>
-    </nav>
-  </header>
+  </section>
 
-  <main id="app">
-    <!-- LOGIN -->
-    <section id="loginView" class="panel">
-      <div class="card lg">
-        <h2>Entrar</h2>
-        <p class="muted">Acesse como <strong>Administrador</strong> ou <strong>Cliente</strong>.</p>
-        <div class="grid2">
-          <label>CPF
-            <input id="inpCPF" inputmode="numeric" placeholder="somente números" />
-          </label>
-          <label>Senha
-            <input id="inpSenha" type="password" placeholder="******" />
-          </label>
-        </div>
-        <div class="row">
-          <button id="btnEntrar" class="btn">Entrar</button>
-        </div>
-      </div>
-    </section>
+  <!-- MAPA / CAMINHOS -->
+  <section id="screen-map" class="screen hidden">
+    <h2 id="floorTitle">Andar 1</h2>
+    <div id="hudTop" class="hud"></div>
+    <div id="mapLog" class="log"></div>
+    <div id="path-options" class="grid3"></div>
 
-    <!-- ADMIN -->
-    <section id="adminView" class="panel hidden">
-      <div class="toolbar card">
-        <h2>Administração</h2>
-        <nav class="tabs">
-          <button data-tab="usuarios" class="tab active">Clientes</button>
-          <button data-tab="novo" class="tab">Criar conta</button>
-          <button data-tab="config" class="tab">Config</button>
-        </nav>
-      </div>
+    <div class="inventory">
+      <h3>Equipamentos</h3>
+      <div id="equiped"></div>
+      <button id="autoEquipBtn" class="btn-small">Equipar melhor</button>
+      <h3>Inventário</h3>
+      <div id="inventory"></div>
+    </div>
+  </section>
 
-      <div id="tab-usuarios" class="card">
-        <table class="table">
-          <thead><tr><th>CPF</th><th>Nome</th><th>Serviço</th><th>Parcelas</th><th>Contrato</th><th style="width:280px">Ações</th></tr></thead>
-          <tbody id="tbUsers"></tbody>
-        </table>
-      </div>
+  <!-- BATALHA -->
+  <section id="screen-battle" class="screen hidden">
+    <div class="hud-row">
+      <div id="playerStats" class="panel"></div>
+      <div id="enemyStats" class="panel danger"></div>
+    </div>
+    <div id="battleLog" class="log" style="margin-top:8px"></div>
+    <div id="hand" class="hand"></div>
+    <div class="controls"><button id="endTurnBtn">Encerrar turno</button></div>
+  </section>
 
-      <div id="tab-novo" class="card hidden">
-        <h3>Novo cliente</h3>
-        <div class="grid2">
-          <label>CPF <input id="novoCPF" inputmode="numeric" placeholder="somente números" /></label>
-          <label>Nome <input id="novoNome" placeholder="Nome do cliente" /></label>
-          <label>Senha inicial <input id="novoSenha" placeholder="Defina uma senha" /></label>
-          <label>Serviço/Plano <input id="novoServico" placeholder="Ex.: Evento, Internet 300Mb..." /></label>
-          <label>Contrato (URL pública) <input id="novoContratoUrl" placeholder="https://..." /></label>
-          <label>ou Upload do PDF (local) <input id="novoContratoFile" type="file" accept="application/pdf" /></label>
-        </div>
-        <div class="row"><button id="btnCriar" class="btn">Criar cliente</button></div>
-      </div>
+  <!-- FIM -->
+  <section id="screen-end" class="screen hidden">
+    <h2 id="endTitle"></h2>
+    <p id="endText"></p>
+    <button id="restartBtn">Recomeçar</button>
+  </section>
 
-      <div id="tab-config" class="card hidden">
-        <p><strong>Modo de dados:</strong> <code id="modeLabel">LOCAL</code></p>
-        <p class="muted">Local-first (grátis). Para multi-dispositivo real, ative Supabase no <code>config.js</code>.</p>
-      </div>
+<script>
+/* =========================
+   DADOS (SEM IMAGENS, EMOJIS)
+   ========================= */
+const ITEMS = [
+  { id:"espada_longa",        nome:"Espada Longa",        tipo:"arma",     raridade:"comum",    atributos:{ dano:8,  bloqueio:2 } },
+  { id:"adagas_duplas",       nome:"Adagas Duplas",       tipo:"arma",     raridade:"comum",    atributos:{ dano:6,  energia:1 } },
+  { id:"arco_longo",          nome:"Arco Longo",          tipo:"arma",     raridade:"comum",    atributos:{ dano:9 } },
+  { id:"cajado_arcano",       nome:"Cajado Arcano",       tipo:"arma",     raridade:"comum",    atributos:{ dano:10, magia:4 } },
+  { id:"martelo_de_guerra",   nome:"Martelo de Guerra",   tipo:"arma",     raridade:"incomum",  atributos:{ dano:12, bloqueio:3 } },
 
-      <div id="editorBox" class="card hidden">
-        <div class="row between">
-          <h3>Gerenciar <span id="edNome"></span> <small class="muted">(<span id="edCpf"></span>)</small></h3>
-          <div class="tabs small">
-            <button data-tab="ed-dados" class="tab active">Dados</button>
-            <button data-tab="ed-contrato" class="tab">Contrato</button>
-            <button data-tab="ed-parcelas" class="tab">Parcelas</button>
-          </div>
-        </div>
+  { id:"lanca_celeste",       nome:"Lança Celeste",       tipo:"arma",     raridade:"rara",     atributos:{ dano:16, energia:1, bonusVs:"morto-vivo" } },
+  { id:"espada_do_crepusculo",nome:"Espada do Crepúsculo",tipo:"arma",     raridade:"epica",    atributos:{ dano:20, magia:2 } },
+  { id:"cajado_das_estrelas", nome:"Cajado das Estrelas", tipo:"arma",     raridade:"lendaria", atributos:{ dano:15, magia:6, energia:1 } },
 
-        <div id="tab-ed-dados" class="section">
-          <div class="grid2">
-            <label>Nome <input id="edNomeIn" /></label>
-            <label>Senha (nova) <input id="edSenhaIn" placeholder="deixe vazio p/ manter" /></label>
-            <label>Serviço/Plano <input id="edServicoIn" /></label>
-          </div>
-          <div class="row"><button id="btnSalvarDados" class="btn">Salvar dados</button></div>
-        </div>
+  { id:"armadura_de_couro",   nome:"Armadura de Couro",   tipo:"armadura", raridade:"comum",    atributos:{ defesa:6,  esquiva:2 } },
+  { id:"armadura_de_aco",     nome:"Armadura de Aço",     tipo:"armadura", raridade:"incomum",  atributos:{ defesa:10, energia:-1 } },
+  { id:"manto_da_sombra",     nome:"Manto da Sombra",     tipo:"armadura", raridade:"rara",     atributos:{ defesa:8,  esquiva:5 } },
+  { id:"armadura_draconica",  nome:"Armadura Dracônica",  tipo:"armadura", raridade:"lendaria", atributos:{ defesa:18, bloqueio:5 } },
 
-        <div id="tab-ed-contrato" class="section hidden">
-          <div class="grid2">
-            <label>Contrato (URL pública) <input id="edContratoUrlIn" placeholder="https://..." /></label>
-            <label>ou Upload PDF (local) <input id="edContratoFile" type="file" accept="application/pdf" /></label>
-          </div>
-          <div class="row">
-            <a id="edContratoLink" target="_blank" class="btn ghost">Abrir em nova aba</a>
-            <button id="btnSalvarContrato" class="btn">Salvar contrato</button>
-          </div>
-        </div>
+  { id:"anel_da_vitalidade",  nome:"Anel da Vitalidade",  tipo:"artefato", raridade:"rara",     atributos:{ vida:20, regen:2 } },
+  { id:"amuleta_do_vazio",    nome:"Amuleta do Vazio",    tipo:"artefato", raridade:"epica",    atributos:{ energia:1, magia:3, descontoMagia:1 } },
+  { id:"orbe_do_destino",     nome:"Orbe do Destino",     tipo:"artefato", raridade:"lendaria", atributos:{ dano:5,  energia:2, copiaTurnos:3 } },
+];
 
-        <div id="tab-ed-parcelas" class="section hidden">
-          <table class="table">
-            <thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Status</th><th style="width:280px">Ações</th></tr></thead>
-            <tbody id="tbParcelas"></tbody>
-          </table>
-          <div class="grid2">
-            <label>Vencimento <input id="parVenc" type="date" /></label>
-            <label>Valor (R$) <input id="parVal" type="number" step="0.01" /></label>
-            <label>Status
-              <select id="parStatus">
-                <option value="aberto">aberto</option>
-                <option value="pago">pago</option>
-                <option value="vencido">vencido</option>
-              </select>
-            </label>
-          </div>
-          <div class="row"><button id="btnAddParcela" class="btn">Adicionar parcela</button></div>
-        </div>
-      </div>
-    </section>
+const CHARACTERS = [
+  { id:"guerreiro", nome:"Guerreiro", emoji:"⚔️", descricao:"Disciplina e aço.",
+    vidaMax:100, energiaMax:3, atributos:{ FOR:16, DES:10, CON:14, INT:8,  SAB:10, CAR:10 },
+    armaInicial:"espada_longa",  armaduraInicial:"armadura_de_couro" },
+  { id:"mago", nome:"Mago", emoji:"✨", descricao:"Erudito arcano.",
+    vidaMax:80,  energiaMax:3, atributos:{ FOR:8,  DES:12, CON:10, INT:16, SAB:14, CAR:12 },
+    armaInicial:"cajado_arcano",  armaduraInicial:"manto_da_sombra" },
+  { id:"ladino", nome:"Ladino", emoji:"🗡️", descricao:"Ágil e oportunista.",
+    vidaMax:90,  energiaMax:4, atributos:{ FOR:10, DES:16, CON:12, INT:12, SAB:10, CAR:14 },
+    armaInicial:"adagas_duplas",  armaduraInicial:"armadura_de_couro" },
+  { id:"clerigo", nome:"Clérigo", emoji:"🛐", descricao:"Luz e martelo.",
+    vidaMax:95,  energiaMax:3, atributos:{ FOR:10, DES:10, CON:14, INT:12, SAB:16, CAR:12 },
+    armaInicial:"martelo_de_guerra", armaduraInicial:"armadura_de_aco" },
+  { id:"arqueiro", nome:"Arqueiro", emoji:"🏹", descricao:"Controle e precisão.",
+    vidaMax:85,  energiaMax:4, atributos:{ FOR:12, DES:18, CON:10, INT:10, SAB:12, CAR:10 },
+    armaInicial:"arco_longo",     armaduraInicial:"armadura_de_couro" },
+];
 
-    <!-- CLIENTE -->
-    <section id="clienteView" class="panel hidden">
-      <div class="card">
-        <div class="row between">
-          <h2 id="cliSaudacao">Olá 👋</h2>
-          <div class="tabs">
-            <button data-tab="c-contrato" class="tab active">Contrato</button>
-            <button data-tab="c-parcelas" class="tab">Parcelas</button>
-          </div>
-        </div>
+const WEAPON_CARDS = {
+  espada_longa: [
+    { nome:"Golpe", tipo:"ataque", custo:1, dano:8, tag:"fisico", copies:2 },
+    { nome:"Corte Longo", tipo:"ataque", custo:2, dano:14, tag:"fisico", copies:1 },
+    { nome:"Postura Defensiva", tipo:"defesa", custo:1, bloqueio:6, copies:1 },
+  ],
+  adagas_duplas: [
+    { nome:"Ataque Rápido", tipo:"ataque", custo:1, dano:6, tag:"fisico", copies:2 },
+    { nome:"Estocada Dupla", tipo:"ataque", custo:2, dano:12, tag:"fisico", copies:1 },
+    { nome:"Esquiva Ágil", tipo:"defesa", custo:1, bloqueio:7, copies:1 },
+  ],
+  arco_longo: [
+    { nome:"Tiro Preciso", tipo:"ataque", custo:1, dano:9, tag:"fisico", copies:2 },
+    { nome:"Chuva de Flechas", tipo:"ataque", custo:2, dano:16, tag:"fisico", copies:1 },
+    { nome:"Rolamento", tipo:"defesa", custo:1, bloqueio:6, copies:1 },
+  ],
+  cajado_arcano: [
+    { nome:"Raio Arcano", tipo:"ataque", custo:1, dano:10, tag:"magico", copies:2 },
+    { nome:"Explosão Ígnea", tipo:"ataque", custo:2, dano:18, tag:"magico", copies:1 },
+    { nome:"Barreira Mística", tipo:"defesa", custo:1, bloqueio:8, copies:1 },
+  ],
+  martelo_de_guerra: [
+    { nome:"Golpe Pesado", tipo:"ataque", custo:2, dano:16, tag:"fisico", copies:2 },
+    { nome:"Parede de Aço", tipo:"defesa", custo:1, bloqueio:9, copies:1 },
+  ],
+  lanca_celeste: [
+    { nome:"Investida Celeste", tipo:"ataque", custo:2, dano:16, tag:"fisico", copies:2 },
+    { nome:"Postura do Lanceiro", tipo:"defesa", custo:1, bloqueio:8, copies:1 },
+  ],
+  espada_do_crepusculo: [
+    { nome:"Corte Sombrio", tipo:"ataque", custo:2, dano:20, tag:"magico", copies:1 },
+    { nome:"Entalhe da Noite", tipo:"ataque", custo:1, dano:10, tag:"magico", copies:1 },
+    { nome:"Guarda Crepuscular", tipo:"defesa", custo:1, bloqueio:9, copies:1 },
+  ],
+  cajado_das_estrelas: [
+    { nome:"Meteoro Estelar", tipo:"ataque", custo:2, dano:22, tag:"magico", copies:1 },
+    { nome:"Véu Cósmico", tipo:"defesa", custo:1, bloqueio:10, copies:1 },
+    { nome:"Fluxo Astral", tipo:"buff", custo:1, energia:1, copies:1 },
+  ],
+};
 
-        <div id="tab-c-contrato" class="section">
-          <div class="pdfbox">
-            <div class="pdfheader row between">
-              <div>
-                <strong>Contrato:</strong> <span id="cContratoNumero">—</span> ·
-                <strong>Serviço:</strong> <span id="cContratoServico">—</span> ·
-                <strong>Status:</strong> <span id="cContratoStatus">—</span>
-              </div>
-              <div class="row gap">
-                <button id="btnVerInApp" class="btn ghost">Ver no app</button>
-                <a id="btnAbrirAba" class="btn" target="_blank">Abrir em nova aba</a>
-              </div>
-            </div>
-            <div class="pdfviewport">
-              <object id="pdfObject" type="application/pdf" data="" aria-label="Visualizador de PDF">
-                <div class="muted center">Não foi possível embutir o PDF. Use o botão “Abrir em nova aba”.</div>
-              </object>
-            </div>
-          </div>
-        </div>
+const CLASS_ABILITY_CARDS = {
+  guerreiro: [
+    { nome:"Grito de Guerra", tipo:"buff", custo:1, cura:4, copies:1 },
+    { nome:"Defesa Tática",   tipo:"defesa", custo:1, bloqueio:6, copies:1 },
+  ],
+  mago: [
+    { nome:"Recuperar Mana", tipo:"buff", custo:1, cura:6, copies:1 },
+    { nome:"Foco Arcano",    tipo:"buff", custo:1, energia:1, copies:1 },
+  ],
+  ladino: [
+    { nome:"Adrenalina",     tipo:"buff", custo:1, energia:1, copies:1 },
+    { nome:"Passo das Sombras", tipo:"defesa", custo:1, bloqueio:7, copies:1 },
+  ],
+  clerigo: [
+    { nome:"Luz Curativa",   tipo:"buff", custo:1, cura:8, copies:1 },
+    { nome:"Bênção Divina",  tipo:"buff", custo:1, energia:1, copies:1 },
+  ],
+  arqueiro: [
+    { nome:"Foco do Caçador", tipo:"buff", custo:1, energia:1, copies:1 },
+    { nome:"Passo Leve",      tipo:"defesa", custo:1, bloqueio:6, copies:1 },
+  ],
+};
 
-        <div id="tab-c-parcelas" class="section hidden">
-          <table class="table">
-            <thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Status</th><th style="width:220px">Ações</th></tr></thead>
-            <tbody id="cListaParcelas"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  </main>
+const PATHS = [
+  // floresta / estrada / ruínas / montanha / castelo etc (30 possibilidades)
+  { id:"floresta_enevoada",    nome:"Floresta Enevoada",    emoji:"🌲", bioma:"floresta",  descricao:"Névoa densa.",                    andar:[1,3], pesos:{ battle:65, treasure:10, mystery:25 } },
+  { id:"clareira_sussurrante", nome:"Clareira Sussurrante", emoji:"🌿", bioma:"floresta",  descricao:"Sussurros no vento.",             andar:[1,3], pesos:{ battle:60, treasure:10, mystery:30 } },
+  { id:"bosque_fungico",       nome:"Bosque Fúngico",       emoji:"🍄", bioma:"floresta",  descricao:"Cogumelos vivos.",                andar:[1,3], pesos:{ battle:55, treasure:15, mystery:30 } },
 
-  <!-- Modais -->
-  <dialog id="payModal">
-    <form method="dialog" class="modal">
-      <h3>Pagar com Pix</h3>
-      <p><strong>Parcela:</strong> <span id="payParcelaId"></span></p>
-      <p><strong>Valor:</strong> R$ <span id="payValor"></span></p>
-      <canvas id="qrCanvas" width="256" height="256"></canvas>
-      <div class="codebox" id="pixCode"></div>
-      <div class="row gap">
-        <button id="btnCopy" type="button" class="btn ghost">Copiar código</button>
-        <button id="btnClose" value="close" class="btn">Fechar</button>
-      </div>
-    </form>
-  </dialog>
+  { id:"estrada_quebrada",     nome:"Estrada Quebrada",     emoji:"🛣️", bioma:"estrada",   descricao:"Pedras e saqueadores.",           andar:[1,3], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"ponte_em_ruinas",      nome:"Ponte em Ruínas",      emoji:"🌉", bioma:"ponte",     descricao:"Travessia instável.",             andar:[1,3], pesos:{ battle:60, treasure:10, mystery:30 } },
+  { id:"vila_abandonada",      nome:"Vila Abandonada",      emoji:"🏚️", bioma:"vilarejo", descricao:"Janelas vazias.",                 andar:[1,3], pesos:{ battle:55, treasure:15, mystery:30 } },
 
-  <dialog id="proofModalClient">
-    <form method="dialog" class="modal">
-      <h3>Enviar comprovante</h3>
-      <p><strong>Parcela:</strong> <span id="proofParcelaId"></span></p>
-      <input type="file" id="proofFile" accept="image/*,application/pdf" />
-      <div class="row gap">
-        <button id="btnSendProof" type="button" class="btn">Enviar</button>
-        <button value="close" class="btn ghost">Cancelar</button>
-      </div>
-      <small class="muted">Demo: salvo no navegador (localStorage).</small>
-    </form>
-  </dialog>
+  { id:"loja_viajante",        nome:"Loja do Viajante",     emoji:"🧳", bioma:"loja",      descricao:"Mercador errante.",                andar:[1,5], pesos:{ shop:100 } },
+  { id:"mercado_negro",        nome:"Mercado Negro",        emoji:"🕳️", bioma:"loja",      descricao:"Itens raros.",                    andar:[2,7], pesos:{ shop:100 } },
+  { id:"ferreiro_anciao",      nome:"Ferreiro Ancião",      emoji:"⚒️", bioma:"forja",     descricao:"Bigorna rúnica.",                 andar:[2,8], pesos:{ forge:100 } },
+  { id:"santuario_luminoso",   nome:"Santuário Luminoso",   emoji:"⛩️", bioma:"descanso",  descricao:"Calor suave.",                     andar:[1,8], pesos:{ rest:100 } },
 
-  <div id="toast" class="toast hidden"></div>
+  { id:"caverna_ecoante",      nome:"Caverna Ecoante",      emoji:"🕳️", bioma:"caverna",  descricao:"Goteiras ritmadas.",              andar:[3,6], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"fenda_cristalina",     nome:"Fenda Cristalina",     emoji:"💎", bioma:"caverna",   descricao:"Cristais vibram.",                andar:[3,6], pesos:{ battle:55, treasure:20, mystery:25 } },
+  { id:"lago_congelado",       nome:"Lago Congelado",       emoji:"🧊", bioma:"gélido",    descricao:"Algo sob o gelo.",                andar:[3,6], pesos:{ battle:65, treasure:10, mystery:25 } },
+  { id:"pantano_miasmatico",   nome:"Pântano Miasmático",   emoji:"🦟", bioma:"pântano",   descricao:"Névoa tóxica.",                   andar:[3,6], pesos:{ battle:60, treasure:10, mystery:30 } },
+  { id:"deserto_de_cinzas",    nome:"Deserto de Cinzas",    emoji:"🏜️", bioma:"deserto",  descricao:"Ventos cortantes.",               andar:[3,6], pesos:{ battle:60, treasure:15, mystery:25 } },
+  { id:"penhasco_ventoso",     nome:"Penhasco Ventoso",     emoji:"🌬️", bioma:"penhasco", descricao:"Rajadas imprevisíveis.",          andar:[3,6], pesos:{ battle:65, treasure:10, mystery:25 } },
+  { id:"garganta_rochosa",     nome:"Garganta Rochosa",     emoji:"🪨", bioma:"montanha",  descricao:"Passagens estreitas.",             andar:[4,7], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"montanha_trovejante",  nome:"Montanha Trovejante",  emoji:"⛈️", bioma:"montanha", descricao:"Trovões constantes.",              andar:[4,7], pesos:{ battle:70, treasure:10, mystery:20 } },
 
-  <footer class="foot">
-    <small>Criado por Richard Alex @richard.gms</small>
-  </footer>
+  { id:"biblioteca_arcana",    nome:"Biblioteca Arcana",    emoji:"📚", bioma:"ruína",     descricao:"Livros sussurram.",               andar:[5,8], pesos:{ mystery:55, battle:35, treasure:10 } },
+  { id:"templo_antigo",        nome:"Templo Antigo",        emoji:"🏛️", bioma:"templo",   descricao:"Altares gastos.",                 andar:[5,8], pesos:{ battle:60, mystery:25, treasure:15 } },
+  { id:"catacumbas_umidas",    nome:"Catacumbas Úmidas",    emoji:"🪦", bioma:"catacumbas",descricao:"Passos de quem não vive.",        andar:[5,8], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"cripta_silenciosa",    nome:"Cripta Silenciosa",    emoji:"⚱️", bioma:"cripta",   descricao:"Tumbas alinhadas.",               andar:[5,8], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"laboratorio_alquimico",nome:"Laboratório Alquímico",emoji:"⚗️", bioma:"ruína",    descricao:"Círculos pulsando.",              andar:[5,8], pesos:{ battle:45, mystery:40, treasure:15 } },
+  { id:"oficina_do_ferreiro",  nome:"Oficina do Ferreiro",  emoji:"🛠️", bioma:"forja",    descricao:"Centelhas e metal vivo.",        andar:[5,8], pesos:{ forge:100 } },
+  { id:"jardim_estatuas",      nome:"Jardim de Estátuas",   emoji:"🗿", bioma:"ruína",     descricao:"Olhares de pedra.",               andar:[5,8], pesos:{ battle:60, mystery:25, treasure:15 } },
+  { id:"salao_espelhos",       nome:"Salão dos Espelhos",   emoji:"🪞", bioma:"ruína",     descricao:"Reflexos distorcem.",             andar:[5,8], pesos:{ mystery:60, battle:30, treasure:10 } },
 
-  <script src="config.js"></script>
-  <script src="lib/pix.js"></script>
-  <script src="app.js"></script>
+  { id:"galeria_sombria",      nome:"Galeria Sombria",      emoji:"🖼️", bioma:"castelo",  descricao:"Retratos vivos.",                 andar:[7,9], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"antessala_real",       nome:"Antessala Real",       emoji:"👑", bioma:"castelo",  descricao:"Guardas à espreita.",             andar:[7,9], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"salao_do_castelo",     nome:"Salão do Castelo",     emoji:"🏰", bioma:"castelo",  descricao:"Colunas ameaçadoras.",            andar:[7,9], pesos:{ battle:70, treasure:10, mystery:20 } },
+  { id:"terraco_fortaleza",    nome:"Terraço da Fortaleza", emoji:"🗡️", bioma:"castelo",  descricao:"Ventos frios.",                   andar:[8,9], pesos:{ battle:75, treasure:10, mystery:15 } },
+];
+
+const NPCS = [
+  // Monstros (mais frequentes)
+  { id:"goblin_griznak",  tipo:"monster",  nome:"Goblin de Griznak",  emoji:"👺", battle:{ hp:48,  atkMin:5,  atkMax:11, tipo:"humanoide" } },
+  { id:"lobo_sombrio",    tipo:"monster",  nome:"Lobo das Sombras",   emoji:"🐺", battle:{ hp:56,  atkMin:6,  atkMax:12, tipo:"fera" } },
+  { id:"esqueleto_guerreiro", tipo:"monster", nome:"Esqueleto Guerreiro", emoji:"💀", battle:{ hp:66, atkMin:7, atkMax:14, tipo:"morto-vivo" } },
+  { id:"bruxa_nevoa",     tipo:"monster",  nome:"Bruxa das Névoas",   emoji:"🧙‍♀️", battle:{ hp:82,  atkMin:10, atkMax:18, tipo:"mago" } },
+  { id:"ogro_caverna",    tipo:"monster",  nome:"Ogro das Cavernas",  emoji:"👹", battle:{ hp:104, atkMin:12, atkMax:20, tipo:"gigante" } },
+  { id:"dragao_jovem",    tipo:"monster",  nome:"Dragão Jovem",       emoji:"🐉", battle:{ hp:140, atkMin:16, atkMax:26, tipo:"dragao" } },
+  // NPCs utilitários (raros)
+  { id:"mercador_errante",tipo:"vendor",   nome:"Mercador Errante",   emoji:"🧳", vendor:{ priceMult:1.0, stock:["espada_longa","adagas_duplas","arco_longo","anel_da_vitalidade"] } },
+  { id:"mercado_negro",   tipo:"vendor",   nome:"Vendedor do Mercado Negro", emoji:"🎭", vendor:{ priceMult:1.25, stock:["espada_do_crepusculo","manto_da_sombra","amuleta_do_vazio"] } },
+  { id:"ferreiro_anciao", tipo:"blacksmith",nome:"Ferreiro Ancião",   emoji:"⚒️", blacksmith:{ upgrade:2 } },
+  { id:"sacerdotisa_luz", tipo:"healer",   nome:"Sacerdotisa da Luz", emoji:"🕯️", healer:{ healPercent:0.25, cost:25 } },
+  { id:"estalajadeiro",   tipo:"innkeeper",nome:"Estalajadeiro",      emoji:"🍲", inn:{ healPercent:0.20, cost:15 } },
+];
+
+// spawn por caminho (pesos favorecem monstros)
+const SPAWN_BY_PATH = {
+  floresta_enevoada:[["lobo_sombrio",5],["goblin_griznak",3],["sacerdotisa_luz",1]],
+  clareira_sussurrante:[["lobo_sombrio",4],["goblin_griznak",3]],
+  bosque_fungico:[["lobo_sombrio",3],["esqueleto_guerreiro",2]],
+  estrada_quebrada:[["goblin_griznak",5],["mercador_errante",1]],
+  ponte_em_ruinas:[["goblin_griznak",4],["esqueleto_guerreiro",3]],
+  vila_abandonada:[["esqueleto_guerreiro",5],["mercador_errante",1]],
+
+  loja_viajante:[["mercador_errante",6]],
+  mercado_negro:[["mercado_negro",6]],
+  ferreiro_anciao:[["ferreiro_anciao",6]],
+  santuario_luminoso:[["sacerdotisa_luz",5],["estalajadeiro",1]],
+
+  caverna_ecoante:[["ogro_caverna",4],["goblin_griznak",3]],
+  fenda_cristalina:[["bruxa_nevoa",4]],
+  lago_congelado:[["lobo_sombrio",4],["bruxa_nevoa",2]],
+  pantano_miasmatico:[["bruxa_nevoa",4],["goblin_griznak",2]],
+  deserto_de_cinzas:[["ogro_caverna",4],["mercado_negro",1]],
+  penhasco_ventoso:[["ogro_caverna",3],["lobo_sombrio",3]],
+  garganta_rochosa:[["ogro_caverna",4],["goblin_griznak",2]],
+  montanha_trovejante:[["ogro_caverna",4],["bruxa_nevoa",2],["mercador_errante",1]],
+
+  biblioteca_arcana:[["bruxa_nevoa",3]],
+  templo_antigo:[["esqueleto_guerreiro",4],["sacerdotisa_luz",1]],
+  catacumbas_umidas:[["esqueleto_guerreiro",5]],
+  cripta_silenciosa:[["esqueleto_guerreiro",5]],
+  laboratorio_alquimico:[["bruxa_nevoa",4],["mercado_negro",1]],
+  oficina_do_ferreiro:[["ferreiro_anciao",6]],
+  jardim_estatuas:[["esqueleto_guerreiro",4],["bruxa_nevoa",2]],
+  salao_espelhos:[["bruxa_nevoa",4],["mercador_errante",1]],
+  galeria_sombria:[["esqueleto_guerreiro",4],["bruxa_nevoa",2]],
+  antessala_real:[["esqueleto_guerreiro",3],["ogro_caverna",3]],
+  salao_do_castelo:[["ogro_caverna",4],["bruxa_nevoa",2]],
+  terraco_fortaleza:[["lobo_sombrio",3],["ogro_caverna",3]],
+};
+
+/* ==============
+   REGRAS / ESTADO
+   ============== */
+const priceOf = r => ({comum:20,incomum:40,rara:80,epica:140,lendaria:220}[r]||40);
+function rarityRoll(){ const R={comum:60,incomum:25,rara:12,epica:2,lendaria:1}; let t=0; for(const k in R)t+=R[k]; let r=Math.random()*t; for(const k in R){ r-=R[k]; if(r<=0)return k;} return "comum"; }
+function randomItemByRarity(r){ const pool=ITEMS.filter(i=>i.raridade===r); return JSON.parse(JSON.stringify(pool[Math.floor(Math.random()*pool.length)])); }
+function getItem(id){ return ITEMS.find(i=>i.id===id)||null; }
+const expandCopies = cards => { const out=[];(cards||[]).forEach(c=>{const n=c.copies||1;for(let i=0;i<n;i++)out.push({...c});});return out; };
+function createDeckFor(player){
+  const fromWeapon = expandCopies(WEAPON_CARDS[player?.equip?.arma?.id]||[]);
+  const fromClass  = expandCopies(CLASS_ABILITY_CARDS[player.id]||[]);
+  const deck = [...fromWeapon, ...fromClass];
+  if(deck.length===0){ deck.push({nome:"Soco",tipo:"ataque",custo:1,dano:5,tag:"fisico"}); deck.push({nome:"Bloquear",tipo:"defesa",custo:1,bloqueio:5}); }
+  return deck;
+}
+
+/* MAIS LUTAS, MENOS EXTRAS */
+const EVENT_TUNING = {
+  multipliers: { battle:2.2, elite:1.2, shop:0.15, treasure:0.15, rest:0.4, forge:0.5, mystery:0.6, boss:1.0 },
+  limits: { shop:1, treasure:1 },
+  cooldowns: { shop:3, treasure:3 },
+  shopMinGold(floor){ return floor < 7 ? 40 : 25; },
+  treasureRequiresFight: true
+};
+const RUN_STATS = { shops:0, treasures:0, floorsSinceShop:99, floorsSinceTreasure:99, lastEventType:null };
+
+/* =========
+   UTIL/DOM
+   ========= */
+const $ = id => document.getElementById(id);
+const screenStart=$('screen-start'), screenMap=$('screen-map'), screenBattle=$('screen-battle'), screenEnd=$('screen-end');
+const playerClass=$('playerClass'), playerName=$('playerName'), startBtn=$('startBtn'), startError=$('startError');
+const classPreviewEmoji=$('classPreviewEmoji'), classPreviewText=$('classPreviewText');
+const floorTitle=$('floorTitle'), hudTop=$('hudTop'), mapLog=$('mapLog'), pathBox=$('path-options');
+const equipedBox=$('equiped'), invBox=$('inventory'), autoEquipBtn=$('autoEquipBtn');
+const playerStats=$('playerStats'), enemyStats=$('enemyStats'), battleLog=$('battleLog'), handBox=$('hand');
+const endTurnBtn=$('endTurnBtn'), endTitle=$('endTitle'), endText=$('endText'), restartBtn=$('restartBtn'), sanityTag=$('sanityTag');
+
+const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a;};
+function logMap(msg){ mapLog.innerHTML += `<p>${msg}</p>`; mapLog.scrollTop = mapLog.scrollHeight; }
+function logBattle(msg){ battleLog.innerHTML += `<p>${msg}</p>`; battleLog.scrollTop = battleLog.scrollHeight; }
+function removeNextBtn(){ const b=document.getElementById('nextFloorBtn'); if(b) b.remove(); }
+function offerNextFloor(label="Próximo andar"){ removeNextBtn(); const btn=document.createElement('button'); btn.id='nextFloorBtn'; btn.className='btn-small'; btn.textContent=label; btn.onclick=()=>nextFloorOrEnd(); mapLog.appendChild(document.createElement('p')).appendChild(btn); }
+
+/* ============
+   ESTADO JOGO
+   ============ */
+let floor=1, MAX_FLOORS=10;
+let player=null, enemy=null;
+let deck=[], hand=[];
+let energia=0, bloqueio=0;
+
+/* =======
+   PLAYER
+   ======= */
+function newPlayer(base, nome){
+  const arma = getItem(base.armaInicial);
+  const armadura = getItem(base.armaduraInicial);
+  const p = {
+    id: base.id, nome: nome||"Aventureiro",
+    nomeClasse: base.nome, emoji: base.emoji, descricao: base.descricao,
+    vidaMaxBase: base.vidaMax, energiaMaxBase: base.energiaMax,
+    atributos: JSON.parse(JSON.stringify(base.atributos)),
+    hp: base.vidaMax, energiaMax: base.energiaMax,
+    gold: 50, inventario: [], equip: { arma: arma||null, armadura: armadura||null, artefatos: [] }, bonus:{}
+  };
+  recalcDerived(p); p.deckBase=createDeckFor(p);
+  return p;
+}
+function recalcDerived(p=player){
+  const bonus={ vida:0, energia:0, dano:0, magia:0, bloqueio:0, defesa:0, descontoMagia:0, regen:0, copiaTurnos:0 };
+  const eq=[]; if(p.equip.arma) eq.push(p.equip.arma); if(p.equip.armadura) eq.push(p.equip.armadura); for(const a of (p.equip.artefatos||[])) eq.push(a);
+  for(const it of eq){ const at=it.atributos||{}; for(const k of Object.keys(at)){ if(k in bonus) bonus[k]+=Number(at[k])||0; } }
+  p.vidaMax = p.vidaMaxBase + bonus.vida; if(p.hp>p.vidaMax) p.hp=p.vidaMax;
+  p.energiaMax = Math.max(0, p.energiaMaxBase + bonus.energia);
+  p.bonus = bonus;
+}
+function equipItemById(id){
+  const it = getItem(id); if(!it) return false;
+  if(it.tipo==="arma"){ if(player.equip.arma) player.inventario.push(player.equip.arma); player.equip.arma=it; player.inventario=player.inventario.filter(x=>x.id!==id); recalcDerived(); player.deckBase=createDeckFor(player); logMap(`Você equipou <b>${it.nome}</b>. Cartas atualizadas.`); }
+  else if(it.tipo==="armadura"){ if(player.equip.armadura) player.inventario.push(player.equip.armadura); player.equip.armadura=it; player.inventario=player.inventario.filter(x=>x.id!==id); recalcDerived(); logMap(`Você equipou <b>${it.nome}</b>.`); }
+  else if(it.tipo==="artefato"){ if(!player.equip.artefatos) player.equip.artefatos=[]; if(player.equip.artefatos.length>=3) player.inventario.push(player.equip.artefatos.shift()); player.equip.artefatos.push(it); player.inventario=player.inventario.filter(x=>x.id!==id); recalcDerived(); logMap(`Artefato adquirido: <b>${it.nome}</b>.`); }
+  renderEquip(); renderInventory(); updateHUDTop(); return true;
+}
+window._eq=(id)=>equipItemById(id);
+
+function autoEquip(){
+  const armas=player.inventario.filter(i=>i.tipo==="arma").sort((a,b)=>(b.atributos?.dano||0)-(a.atributos?.dano||0));
+  const armors=player.inventario.filter(i=>i.tipo==="armadura").sort((a,b)=>(b.atributos?.defesa||0)-(a.atributos?.defesa||0));
+  if(armas[0]) equipItemById(armas[0].id);
+  if(armors[0]) equipItemById(armors[0].id);
+}
+
+function strMods(){ const A=player.atributos, m={}; for(const k of Object.keys(A)) m[k]=Math.floor((A[k]-10)/2); return m; }
+function updateHUDTop(){
+  const m=strMods(); const arma=player.equip.arma?.nome||"—", armadura=player.equip.armadura?.nome||"—";
+  hudTop.innerHTML = `
+    <b>${player.nome}</b> — ${player.nomeClasse} ${player.emoji||""}
+    <span class="pill good">❤️ ${player.hp}/${player.vidaMax}</span>
+    <span class="pill">⚡ ${player.energiaMax}</span>
+    <span class="pill">🪙 ${player.gold}</span>
+    <span class="pill">FOR ${player.atributos.FOR}(${m.FOR>=0?"+":""}${m.FOR}) DES ${player.atributos.DES} CON ${player.atributos.CON}</span>
+    <span class="pill">INT ${player.atributos.INT} SAB ${player.atributos.SAB} CAR ${player.atributos.CAR}</span>
+    <span class="pill">Arma: ${arma}</span>
+    <span class="pill">Armadura: ${armadura}</span>`;
+}
+function renderEquip(){
+  const arts=(player.equip.artefatos||[]).map(a=>a.nome).join(", ")||"—";
+  equipedBox.innerHTML = [
+    `<span class="pill badge"><b>Arma:</b> ${player.equip.arma?player.equip.arma.nome:"—"}</span>`,
+    `<span class="pill badge"><b>Armadura:</b> ${player.equip.armadura?player.equip.armadura.nome:"—"}</span>`,
+    `<span class="pill badge"><b>Artefatos:</b> ${arts}</span>`
+  ].join(" ");
+}
+function renderInventory(){
+  if(player.inventario.length===0){ invBox.innerHTML=`<span class="pill">Vazio</span>`; return; }
+  invBox.innerHTML = player.inventario.map(it=>`<span class="pill">${it.nome} <button class="btn-small" onclick="window._eq('${it.id}')">Equipar</button></span>`).join(" ");
+}
+
+/* ======
+   CAMINHO
+   ====== */
+let _currentPathChoices=[];
+function pickPathsForFloor(floor, n=3){
+  const f=Math.max(1,Math.min(10,floor));
+  const pool=PATHS.filter(p=>{ const [a,b]=p.andar||[1,10]; return f>=a && f<=b; });
+  const list=pool.length>=n?pool:[...PATHS];
+  const out=[]; while(out.length<n&&list.length){ const i=Math.floor(Math.random()*list.length); out.push(list.splice(i,1)[0]); } return out;
+}
+function renderPaths(){
+  _currentPathChoices = pickPathsForFloor(floor, 3);
+  pathBox.innerHTML = _currentPathChoices.map((p,i)=>`
+    <div class="option" onclick="window._pickPath(${i})">
+      <div><b>${p.emoji||"•"} ${p.nome}</b><br><small class="muted">${p.bioma} — ${p.descricao}</small></div>
+    </div>`).join("");
+}
+window._pickPath=(i)=>choosePath(_currentPathChoices[i]);
+
+function weightedChoice(w){ const e=Object.entries(w||{}).filter(([,x])=>x>0); const t=e.reduce((a,[,x])=>a+x,0)||0; if(!t) return "battle"; let r=Math.random()*t; for(const [k,x] of e){ r-=x; if(r<=0) return k; } return e[0][0]; }
+function rollEventSmart(path){
+  const base = Object.assign({}, path?.pesos || { battle:100 });
+  for(const k in EVENT_TUNING.multipliers){ if(base[k]!=null) base[k] = Math.round(base[k] * EVENT_TUNING.multipliers[k]); }
+  if(base.shop){
+    const block = (RUN_STATS.floorsSinceShop < EVENT_TUNING.cooldowns.shop) || (RUN_STATS.shops >= EVENT_TUNING.limits.shop) || ((player?.gold||0) < EVENT_TUNING.shopMinGold(floor));
+    if(block) base.shop = 0;
+  }
+  if(base.treasure){
+    const needFight = EVENT_TUNING.treasureRequiresFight && !["battle","elite"].includes(RUN_STATS.lastEventType||"");
+    const block = (RUN_STATS.floorsSinceTreasure < EVENT_TUNING.cooldowns.treasure) || (RUN_STATS.treasures >= EVENT_TUNING.limits.treasure) || needFight;
+    if(block) base.treasure = Math.floor((base.treasure||0) * 0.1);
+  }
+  if(base.battle == null || base.battle <= 0) base.battle = 50;
+  return weightedChoice(base);
+}
+function getNpcById(id){ return NPCS.find(n=>n.id===id)||null; }
+function pickNpcFor(path){
+  const list=(SPAWN_BY_PATH[path.id]||[["goblin_griznak",1]]);
+  const total=list.reduce((a,[,w])=>a+(w||0),0)||1; let r=Math.random()*total;
+  for(const [id,w] of list){ r-=w; if(r<=0) return getNpcById(id); }
+  return getNpcById(list[0][0]);
+}
+function decideNpcMode(npc){
+  if(npc.tipo==="monster") return "battle";
+  if(npc.tipo==="vendor") return "shop";
+  if(npc.tipo==="blacksmith") return "forge";
+  if(npc.tipo==="healer"||npc.tipo==="innkeeper") return "heal";
+  return "dialogue";
+}
+
+function choosePath(path){
+  mapLog.innerHTML="";
+  const ev = rollEventSmart(path);
+
+  // Tesouro (raro)
+  if(ev==="treasure"){
+    const rar=rarityRoll(); const item=randomItemByRarity(rar);
+    player.inventario.push(item);
+    logMap(`🎁 Baú: <b>${item.nome}</b> <span class="pill badge">${item.raridade}</span> <button class="btn-small" onclick="window._eq('${item.id}')">Equipar</button>`);
+    renderInventory(); renderEquip();
+    RUN_STATS.treasures++; RUN_STATS.floorsSinceTreasure = 0; RUN_STATS.lastEventType = 'treasure';
+    offerNextFloor(); return;
+  }
+
+  // Escolhe NPC por caminho
+  const npc = pickNpcFor(path);
+  const mode = (ev==="elite") ? "battle_elite" : decideNpcMode(npc);
+
+  if(mode==="battle"||mode==="battle_elite"){ startBattleWithNpc(npc,{elite:mode==="battle_elite"}); return; }
+  if(mode==="shop"){ shopEventFromNpc(npc); return; }
+  if(mode==="forge"){ forgeEventFromNpc(npc); return; }
+  if(mode==="heal"){  healEventFromNpc(npc);  return; }
+  dialogueEventFromNpc(npc);
+}
+
+/* =======
+   BATALHA
+   ======= */
+function strMod(k){ return Math.floor((player.atributos[k]-10)/2); }
+function effectiveCost(c){ const desc=player.bonus?.descontoMagia||0; if(c.tag==="magico" && desc>0) return Math.max(0,(c.custo||0)-desc); return c.custo||0; }
+function calcDamage(c){
+  if(c.tipo!=="ataque") return 0;
+  let base=c.dano||0;
+  if(c.tag==="fisico") base += (player.bonus?.dano||0) + Math.max(0,strMod("FOR"));
+  if(c.tag==="magico") base += (player.bonus?.magia||0) + Math.max(0,strMod("INT"));
+  const vs=player.equip.arma?.atributos?.bonusVs; if(vs && vs=== (enemy.tipo||"")) base=Math.round(base*1.2);
+  return base;
+}
+function updateBattleHUD(){
+  const b=player.bonus||{};
+  playerStats.innerHTML = `<b>${player.nome}</b> — ${player.nomeClasse} ${player.emoji||""}<br>❤️ ${player.hp}/${player.vidaMax} &nbsp; 🛡️ ${bloqueio} &nbsp; ⚡ ${energia}/${player.energiaMax} ${b.regen?`<span class="pill good">regen ${b.regen}/t</span>`:""}`;
+  enemyStats.innerHTML  = `<b>${enemy.emoji||"👾"} ${enemy.nome}</b><br>❤️ ${enemy.hp}/${enemy.hpMax}`;
+}
+function drawCards(n){ for(let i=0;i<n;i++){ if(deck.length===0) deck=shuffle([...player.deckBase]); hand.push(deck.pop()); } renderHand(); }
+function renderHand(){
+  handBox.innerHTML="";
+  hand.forEach((c,idx)=>{
+    const cost=effectiveCost(c);
+    const text = c.tipo==="ataque" ? `⚔️ ${calcDamage(c)} dano` :
+                 c.tipo==="defesa" ? `🛡️ ${c.bloqueio} bloqueio` :
+                 c.cura ? `✨ cura ${c.cura}` :
+                 c.energia ? `⚡ +${c.energia} energia` : "Efeito";
+    const tag = c.tag?`<div class="tags">${c.tag}</div>`:"";
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<div class="head"><span>${c.nome}</span><span>💧${cost}</span></div>${text}${tag}`;
+    el.onclick=()=>playCard(idx);
+    handBox.appendChild(el);
+  });
+}
+function playCard(i){
+  const c=hand[i]; const cost=effectiveCost(c);
+  if(energia<cost){ logBattle("Energia insuficiente!"); return; }
+  energia-=cost;
+  if(c.tipo==="ataque"){ const dmg=calcDamage(c); enemy.hp-=dmg; logBattle(`Você usa <b>${c.nome}</b> e causa <b>${dmg}</b> de dano!`); if(enemy.hp<=0) return winCombat(); }
+  else if(c.tipo==="defesa"){ bloqueio+=c.bloqueio||0; logBattle(`Você usa <b>${c.nome}</b> (+${c.bloqueio||0} bloqueio).`); }
+  else if(c.tipo==="buff"){ if(c.cura){ const antes=player.hp; player.hp=Math.min(player.vidaMax,player.hp+c.cura); logBattle(`Você cura ${player.hp-antes}.`);} if(c.energia){ energia+=c.energia; logBattle(`Você ganha ${c.energia} energia.`);} }
+  hand.splice(i,1); renderHand(); updateBattleHUD();
+}
+function enemyTurn(){
+  const dano=rand(enemy.atkMin,enemy.atkMax);
+  const real=Math.max(0,dano-bloqueio);
+  bloqueio=Math.max(0,bloqueio-dano);
+  player.hp-=real; logBattle(`${enemy.nome} atinge você por <b>${real}</b> de dano.`);
+  if(player.hp<=0) return loseCombat();
+  updateBattleHUD();
+}
+function endTurn(){ bloqueio=0; energia=player.energiaMax; drawCards(5); enemyTurn(); }
+function startBattleWithNpc(npc, opts={}){
+  const b=npc.battle||{};
+  enemy={ nome:npc.nome, emoji:npc.emoji||"👾", hp:b.hp||60, hpMax:b.hp||60, atkMin:b.atkMin||6, atkMax:b.atkMax||12, tipo:b.tipo||"fera" };
+  if(opts.elite){ enemy.hp=Math.round(enemy.hp*1.25); enemy.hpMax=enemy.hp; enemy.atkMax+=3; }
+  screenMap.classList.add('hidden'); screenBattle.classList.remove('hidden');
+  battleLog.innerHTML = `<p>${enemy.emoji} ${enemy.nome} aparece!</p>`;
+  energia=player.energiaMax; bloqueio=0; deck=shuffle([...player.deckBase]); hand=[]; drawCards(5); updateBattleHUD();
+}
+function winCombat(){
+  const goldGain=15+rand(5,12); player.gold+=goldGain;
+  logBattle(`🏆 Vitória! Saques: 🪙 +${goldGain} ouro.`);
+  screenBattle.classList.add('hidden'); screenMap.classList.remove('hidden');
+  updateHUDTop(); renderEquip(); renderInventory();
+  mapLog.innerHTML += `<p class="pill">Você venceu no andar ${floor}.</p>`;
+  RUN_STATS.lastEventType = 'battle'; RUN_STATS.floorsSinceShop++; RUN_STATS.floorsSinceTreasure++;
+  offerNextFloor("Próximo andar");
+}
+function loseCombat(){
+  screenBattle.classList.add('hidden'); screenEnd.classList.remove('hidden');
+  endTitle.textContent="Derrota..."; endText.textContent=`${player.nome} caiu no andar ${floor} contra ${enemy.nome}.`;
+}
+
+/* ===========
+   INTERAÇÕES NPC
+   =========== */
+function shopEventFromNpc(npc){
+  const stockIds=npc.vendor?.stock||[];
+  const stock=stockIds.map(id=>getItem(id)).filter(Boolean).slice(0,4);
+  const mult=npc.vendor?.priceMult??1.0;
+  const rows=stock.map(it=>{ const p=Math.round(priceOf(it.raridade)*mult);
+    return `<div class="pill">${npc.emoji||"🧳"} ${it.nome} <span class="pill badge">${it.raridade}</span> — 🪙 ${p}
+      <button class="btn-small" onclick="window._buyNpc('${it.id}',${p})">Comprar</button></div>`; }).join("");
+  mapLog.innerHTML = `<p><b>${npc.emoji||"🧳"} ${npc.nome}</b> oferece:</p>${rows}`;
+  RUN_STATS.shops++; RUN_STATS.floorsSinceShop = 0; RUN_STATS.lastEventType = 'shop';
+  window._buyNpc=(id, price)=>{ if((player.gold||0)<price){ mapLog.innerHTML += `<p class="pill warn">Ouro insuficiente.</p>`; return; } player.gold-=price; const it=getItem(id); if(it) player.inventario.push(JSON.parse(JSON.stringify(it))); mapLog.innerHTML += `<p class="pill good">Comprado: <b>${it?.nome||id}</b></p>`; renderInventory(); updateHUDTop(); };
+  offerNextFloor();
+}
+function forgeEventFromNpc(npc){
+  const up=npc.blacksmith?.upgrade??2; (player.deckBase||[]).forEach(c=>{ if(c.tipo==="ataque") c.dano=(c.dano||0)+up; });
+  mapLog.innerHTML = `<p>${npc.emoji||"⚒️"} <b>${npc.nome}</b> aprimora suas cartas de <b>ataque</b> em +${up} dano.</p>`;
+  RUN_STATS.lastEventType = 'forge'; offerNextFloor();
+}
+function healEventFromNpc(npc){
+  const data=npc.healer||npc.inn||{ healPercent:0.2, cost:15 };
+  if((player.gold||0)<data.cost){ mapLog.innerHTML = `<p>${npc.emoji||"🕯️"} ${npc.nome}: Ouro insuficiente (🪙 ${data.cost}).</p>`; offerNextFloor(); return; }
+  player.gold-=data.cost; const heal=Math.max(1,Math.round(player.vidaMax*data.healPercent)); player.hp=Math.min(player.vidaMax,player.hp+heal);
+  mapLog.innerHTML = `<p>${npc.emoji||"🕯️"} ${npc.nome} restaura <b>${heal}</b> de vida por 🪙 ${data.cost}.</p>`;
+  RUN_STATS.lastEventType = 'heal'; offerNextFloor();
+}
+function dialogueEventFromNpc(npc){ mapLog.innerHTML = `<p>${npc.emoji||"💬"} <b>${npc.nome}</b>: ...</p>`; RUN_STATS.lastEventType = 'dialogue'; offerNextFloor(); }
+
+/* =====
+   FLUXO
+   ===== */
+function nextFloorOrEnd(){
+  floor++;
+  RUN_STATS.floorsSinceShop++; RUN_STATS.floorsSinceTreasure++;
+  if(floor>MAX_FLOORS){
+    screenMap.classList.add('hidden'); screenEnd.classList.remove('hidden');
+    endTitle.textContent="Vitória!"; endText.textContent=`${player.nome} alcançou o topo.`;
+  }else{
+    floorTitle.textContent=`Andar ${floor}`; mapLog.innerHTML=""; updateHUDTop(); renderPaths(); renderInventory();
+  }
+}
+window.nextFloorOrEnd = nextFloorOrEnd;
+
+/* ==========
+   SANITY/INÍCIO
+   ========== */
+function sanity(){
+  const probs=[];
+  for(const c of CHARACTERS){
+    if(!getItem(c.armaInicial)) probs.push(`Arma inicial inválida: ${c.id} -> ${c.armaInicial}`);
+    if(!getItem(c.armaduraInicial)) probs.push(`Armadura inicial inválida: ${c.id} -> ${c.armaduraInicial}`);
+  }
+  if(PATHS.length<30) probs.push(`Há apenas ${PATHS.length} caminhos (esperado: 30).`);
+  const armaIds = ITEMS.filter(i=>i.tipo==="arma").map(i=>i.id);
+  armaIds.forEach(id=>{ if(!WEAPON_CARDS[id]) probs.push(`Sem cartas definidas para a arma: ${id}`); });
+
+  if(probs.length){ console.warn("[SanityCheck] Problemas:", probs); sanityTag.textContent="Atenção"; sanityTag.className="pill warn"; sanityTag.title=probs.join("\n"); }
+  else{ console.info("[SanityCheck] OK"); sanityTag.textContent="OK"; sanityTag.className="pill good"; }
+}
+function populateClasses(){
+  try{
+    if(!Array.isArray(CHARACTERS) || CHARACTERS.length===0) throw new Error("Lista de classes vazia.");
+    playerClass.innerHTML = CHARACTERS.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
+    updateClassPreview(CHARACTERS[0].id);
+  }catch(e){
+    playerClass.innerHTML = `<option value="guerreiro">Guerreiro</option>`;
+    updateClassPreview("guerreiro");
+  }
+}
+function updateClassPreview(id){
+  const base = CHARACTERS.find(c=>c.id===id) || CHARACTERS[0];
+  classPreviewEmoji.textContent = base?.emoji || "⚔️";
+  classPreviewText.textContent  = base ? `${base.nome} — ${base.descricao}` : "—";
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{ sanity(); populateClasses(); });
+playerClass?.addEventListener('change', ()=> updateClassPreview(playerClass.value));
+
+startBtn.onclick = ()=>{
+  const id=playerClass.value || (CHARACTERS[0] && CHARACTERS[0].id) || "guerreiro";
+  const base=CHARACTERS.find(c=>c.id===id) || CHARACTERS[0];
+  if(!base){ startError.classList.remove('hidden'); startError.textContent = "Erro ao carregar classes. Recarregue a página."; return; }
+  const nome=playerName.value.trim()||"Aventureiro";
+
+  player = newPlayer(base, nome); floor=1;
+  screenStart.classList.add('hidden'); screenMap.classList.remove('hidden');
+  floorTitle.textContent=`Andar ${floor}`; mapLog.innerHTML="As sombras observam...";
+  updateHUDTop(); renderEquip(); renderInventory(); renderPaths();
+};
+autoEquipBtn.onclick=()=>{ autoEquip(); updateHUDTop(); };
+endTurnBtn.onclick=()=>{ endTurn(); };
+restartBtn.onclick=()=>{ screenEnd.classList.add('hidden'); screenStart.classList.remove('hidden'); populateClasses(); };
+</script>
 </body>
 </html>
